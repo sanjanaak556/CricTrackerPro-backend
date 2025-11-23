@@ -1,62 +1,123 @@
 const Ball = require("../models/Ball");
-const Over = require("../models/Over");
 const Innings = require("../models/Innings");
-const Match = require("../models/Match");
-const ScoreEvent = require("../models/ScoreEvent");
-const Commentary = require("../models/Commentary");
+const Over = require("../models/Over");
+const Player = require("../models/Player");
 
-// add a ball (scorer or admin)
-exports.addBall = async (req, res) => {
+//1. CREATE BALL
+exports.createBall = async (req, res) => {
   try {
-    const { overId, ballNumber, striker, nonStriker, bowler, runs=0, isWide=false, isNoBall=false, isWicket=false, extraType="none", textCommentary } = req.body;
-
-    // minimal validation
-    const over = await Over.findById(overId);
-    if (!over) return res.status(404).json({ message: "Over not found" });
-
-    const innings = await Innings.findById(over.inningsId);
-    if (!innings) return res.status(404).json({ message: "Innings not found" });
-
-    const match = await Match.findById(innings.matchId);
-    if (!match) return res.status(404).json({ message: "Match not found" });
-
-    const ball = new Ball({ overId, ballNumber, striker, nonStriker, bowler, runs, isWide, isNoBall, isWicket, extraType });
-    await ball.save();
-
-    // create score event
-    const ev = new ScoreEvent({
-      matchId: match._id,
-      inningsId: innings._id,
-      overId: over._id,
-      ballId: ball._id,
-      batsman: striker,
+    const {
+      inningsId,
+      overId,
+      striker,
+      nonStriker,
       bowler,
       runs,
-      isWicket,
-      extraType
-    });
-    await ev.save();
+      extraType,
+      isLegalDelivery,
+      isWicket
+    } = req.body;
 
-    // update match currentScore (simple additive)
-    match.currentScore = match.currentScore || { runs:0, wickets:0, overs:"0.0" };
-    match.currentScore.runs = (match.currentScore.runs || 0) + runs;
-    if (isWicket) match.currentScore.wickets = (match.currentScore.wickets || 0) + 1;
-
-    // compute overs display - this is simplified
-    // You should compute overs properly: overs = completedOvers + balls/6
-    // For now we just append a rough string placeholder
-    match.currentScore.overs = match.currentScore.overs || "0.0";
-
-    await match.save();
-
-    // optional: add commentary
-    if (textCommentary) {
-      const c = new Commentary({ matchId: match._id, inningsId: innings._id, text: textCommentary });
-      await c.save();
+    // Validate innings
+    const innings = await Innings.findById(inningsId);
+    if (!innings) {
+      return res.status(404).json({ error: "Innings not found" });
     }
 
-    res.status(201).json({ message: "Ball added", ball, event: ev });
+    // Validate over
+    const over = await Over.findById(overId);
+    if (!over) {
+      return res.status(404).json({ error: "Over not found" });
+    }
+
+    // Validate players
+    const strikerPlayer = await Player.findById(striker);
+    const nonStrikerPlayer = await Player.findById(nonStriker);
+    const bowlerPlayer = await Player.findById(bowler);
+
+    if (!strikerPlayer || !nonStrikerPlayer || !bowlerPlayer) {
+      return res.status(400).json({ error: "Invalid player(s) provided" });
+    }
+
+    // Auto-calculate ball number
+    const existingBalls = await Ball.find({ overId });
+    const ballNumber = existingBalls.length + 1;
+
+    const newBall = await Ball.create({
+      inningsId,
+      overId,
+      ballNumber,
+      striker,
+      nonStriker,
+      bowler,
+      runs,
+      extraType,
+      isLegalDelivery,
+      isWicket
+    });
+
+    // Add ball to over document
+    over.balls.push(newBall._id);
+    await over.save();
+
+    // Update innings
+    innings.totalRuns += runs;
+    if (isWicket) innings.totalWickets += 1;
+
+    // Update overs only on legal delivery
+    if (isLegalDelivery) {
+      const [ov, ball] = innings.totalOvers.split(".").map(Number);
+      if (ball === 5) {
+        innings.totalOvers = `${ov + 1}.0`;
+      } else {
+        innings.totalOvers = `${ov}.${ball + 1}`;
+      }
+    }
+
+    await innings.save();
+
+    return res.status(201).json({
+      message: "Ball added successfully",
+      ball: newBall
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+//2. Get all balls of an over
+exports.getBallsByOver = async (req, res) => {
+  try {
+    const { overId } = req.params;
+
+    const balls = await Ball.find({ overId })
+      .populate("striker", "name")
+      .populate("nonStriker", "name")
+      .populate("bowler", "name");
+
+    res.json({ balls });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
+//3. Get single ball
+exports.getSingleBall = async (req, res) => {
+  try {
+    const ball = await Ball.findById(req.params.id)
+      .populate("striker", "name")
+      .populate("nonStriker", "name")
+      .populate("bowler", "name");
+
+    if (!ball) return res.status(404).json({ error: "Ball not found" });
+
+    res.json({ ball });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+

@@ -1,20 +1,23 @@
+const dotenv = require("dotenv");
+dotenv.config();
+
 const express = require("express");
 const cors = require("cors");
-const dotenv = require("dotenv");
 const connectDB = require("./config/db");
 
 const authRoutes = require("./routes/authRoutes");
-const userRoleRoutes = require("./routes/userRoleRoutes")
-const userRoutes = require("./routes/userRoutes")
-const teamRoutes = require("./routes/teamRoutes")
-const playerRoutes = require("./routes/playerRoutes")
-const matchRoutes = require("./routes/matchRoutes")
-const inningsRoutes = require("./routes/inningsRoutes")
-const overRoutes = require("./routes/overRoutes")
+const userRoleRoutes = require("./routes/userRoleRoutes");
+const userRoutes = require("./routes/userRoutes");
+const teamRoutes = require("./routes/teamRoutes");
+const playerRoutes = require("./routes/playerRoutes");
+const matchRoutes = require("./routes/matchRoutes");
+const inningsRoutes = require("./routes/inningsRoutes");
+const overRoutes = require("./routes/overRoutes");
 const ballRoutes = require("./routes/ballRoutes");
+const scoreEventRoutes = require("./routes/scoreEventRoutes");
+const commentaryRoutes = require("./routes/commentaryRoutes")
+const matchSummaryRoutes = require("./routes/matchSummaryRoutes");
 
-
-dotenv.config();
 const app = express();
 
 // Middleware
@@ -38,7 +41,9 @@ app.use("/api/matches", matchRoutes);
 app.use("/api/innings", inningsRoutes);
 app.use("/api/overs", overRoutes);
 app.use("/api/balls", ballRoutes);
-
+app.use("/api/score-events", scoreEventRoutes);
+app.use("/api/commentary", commentaryRoutes);
+app.use("/api/match-summary", matchSummaryRoutes);
 
 
 // Start server

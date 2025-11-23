@@ -1,13 +1,21 @@
 const express = require("express");
 const router = express.Router();
+
 const auth = require("../middleware/authMiddleware");
 const admin = require("../middleware/adminMiddleware");
-const teamController = require("../controllers/teamController");
+const upload = require("../utils/upload");
 
-router.post("/", auth, admin, teamController.createTeam);
-router.get("/", auth, teamController.getTeams); // viewers can view (auth optional if you want public)
-router.put("/:teamId", auth, admin, teamController.updateTeam);
-router.delete("/:teamId", auth, admin, teamController.deleteTeam);
+const {
+    createTeam,
+    getTeams,
+    updateTeam,
+    deleteTeam
+} = require("../controllers/teamController");
+
+router.post("/", auth, admin, upload.single("logo"), createTeam);
+router.get("/", auth, getTeams);
+router.put("/:teamId", auth, admin, upload.single("logo"), updateTeam);
+router.delete("/:teamId", auth, admin, deleteTeam);
 
 module.exports = router;
 

@@ -1,49 +1,86 @@
 const ScoreEvent = require("../models/ScoreEvent");
+const Match = require("../models/Match");
+const Innings = require("../models/Innings");
+const Over = require("../models/Over");
+const Ball = require("../models/Ball");
 
-
-// Create a new score event (run, wicket, wide, commentary, etc.)
+// CREATE SCORE EVENT
 exports.createScoreEvent = async (req, res) => {
   try {
-    const event = new ScoreEvent(req.body);
-    await event.save();
+    const {
+      matchId,
+      inningsId,
+      overId,
+      ballId,
+      batter,
+      bowler,
+      eventType,
+      runs,
+      extraType,
+      wicketType,
+      description
+    } = req.body;
 
-    res.status(201).json({
-      message: "Score event recorded",
-      event,
+    // Validate match, innings, over, ball
+    const match = await Match.findById(matchId);
+    if (!match) return res.status(404).json({ message: "Match not found" });
+
+    const innings = await Innings.findById(inningsId);
+    if (!innings) return res.status(404).json({ message: "Innings not found" });
+
+    const over = await Over.findById(overId);
+    if (!over) return res.status(404).json({ message: "Over not found" });
+
+    const ball = await Ball.findById(ballId);
+    if (!ball) return res.status(404).json({ message: "Ball not found" });
+
+    // Create Score Event
+    const newEvent = await ScoreEvent.create({
+      matchId,
+      inningsId,
+      overId,
+      ballId,
+      batter,
+      bowler,
+      eventType,
+      runs,
+      extraType,
+      wicketType,
+      description
     });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+
+    return res.status(201).json({
+      message: "Score event created",
+      scoreEvent: newEvent
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-
-// Get all events for an innings
+// GET all events for an innings
 exports.getEventsByInnings = async (req, res) => {
   try {
-    const { inningsId } = req.params;
+    const inningsId = req.params.inningsId;
 
     const events = await ScoreEvent.find({ inningsId })
-      .sort({ createdAt: 1 }) // in order
-      .populate("dismissedPlayer fielder");
+      .populate("batter bowler ballId");
 
-    res.status(200).json(events);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.json(events);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-
-// Live commentary — last 20 events
-exports.getLiveCommentary = async (req, res) => {
+// GET single event
+exports.getEventById = async (req, res) => {
   try {
-    const { matchId } = req.params;
+    const event = await ScoreEvent.findById(req.params.eventId);
 
-    const commentary = await ScoreEvent.find({ matchId })
-      .sort({ createdAt: -1 })
-      .limit(20);
+    if (!event) return res.status(404).json({ message: "Not found" });
 
-    res.status(200).json(commentary.reverse()); 
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.json(event);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

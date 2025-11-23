@@ -1,16 +1,27 @@
 const Team = require("../models/Team");
+const uploadToCloudinary = require("../utils/uploadToCloudinary");
 
 // CREATE TEAM (Admin only)
 exports.createTeam = async (req, res) => {
   try {
-    const { name, logo } = req.body;
+    const { name } = req.body;
 
     if (!name) return res.status(400).json({ message: "Team name is required" });
 
     const exists = await Team.findOne({ name, isActive: true });
     if (exists) return res.status(400).json({ message: "Active team with this name already exists" });
 
-    const team = new Team({ name, logo });
+    // Check image
+    if (!req.file)
+      return res.status(400).json({ message: "Team logo is required" });
+
+    // Upload to cloudinary
+    const result = await uploadToCloudinary(
+      req.file.buffer,
+      "cric_app_team_logos"
+    );
+
+    const team = new Team({ name, logo: result.secure_url });
     await team.save();
 
     res.status(201).json({ message: "Team created successfully", team });
@@ -33,7 +44,7 @@ exports.getTeams = async (req, res) => {
 exports.updateTeam = async (req, res) => {
   try {
     const { teamId } = req.params;
-    const { name, logo } = req.body;
+    const { name } = req.body;
 
     const team = await Team.findById(teamId);
     if (!team || !team.isActive)
@@ -46,11 +57,18 @@ exports.updateTeam = async (req, res) => {
       team.name = name;
     }
 
-    if (logo) team.logo = logo;
+    // If new logo uploaded
+    if (req.file) {
+      const result = await uploadToCloudinary(
+        req.file.buffer,
+        "cric_app_team_logos"
+      );
+      team.logo = result.secure_url;
+    }
 
     await team.save();
-    res.json({ message: "Team updated successfully", team });
 
+    res.json({ message: "Team updated successfully", team });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

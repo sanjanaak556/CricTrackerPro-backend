@@ -1,5 +1,6 @@
 const Player = require("../models/Player");
 const Team = require("../models/Team");
+const uploadToCloudinary = require("../utils/uploadToCloudinary");
 
 // ADD PLAYER (Admin only)
 exports.addPlayer = async (req, res) => {
@@ -16,7 +17,17 @@ exports.addPlayer = async (req, res) => {
       return res.status(400).json({ message: "Invalid or inactive team" });
     }
 
-    const player = new Player({ name, role, teamId });
+    let imageUrl = null;
+
+    if (req.file) {
+      const uploadResult = await uploadToCloudinary(
+        req.file.buffer,
+        "cric_app_players"
+      );
+      imageUrl = uploadResult.secure_url;
+    }
+
+    const player = new Player({ name, role, teamId, image: imageUrl });
     await player.save();
 
     res.status(201).json({ message: "Player added", player });
@@ -49,13 +60,23 @@ exports.updatePlayer = async (req, res) => {
 
     if (name) player.name = name;
     if (role) {
-      const validRoles = ["Batsman", "Bowler", "All-Rounder", "Wicket-Keeper"];
+      const validRoles = ["Batter", "Bowler", "All-Rounder", "Wicket-Keeper"];
       if (!validRoles.includes(role)) {
         return res.status(400).json({ message: "Invalid role" });
       }
       player.role = role;
     }
+
     if (typeof isActive === "boolean") player.isActive = isActive;
+
+    // Update image if provided
+    if (req.file) {
+      const uploadResult = await uploadToCloudinary(
+        req.file.buffer,
+        "cric_app_players"
+      );
+      player.image = uploadResult.secure_url;
+    }
 
     await player.save();
     res.json({ message: "Player updated", player });
