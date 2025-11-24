@@ -5,7 +5,9 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     role: { type: mongoose.Schema.Types.ObjectId, ref: "UserRole", required: true },
-    isActive: { type: Boolean, default: true }
+    isActive: { type: Boolean, default: true },
+    otp: { type: String },
+    otpExpiry: { type: Date }
   },
   { timestamps: true }
 );
