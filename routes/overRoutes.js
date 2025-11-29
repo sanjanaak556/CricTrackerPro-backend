@@ -7,7 +7,9 @@ const scorer = require("../middleware/scorerMiddleware");
 const {
   createOver,
   getOversByInnings,
-  getSingleOver
+  getSingleOver,
+  startOver,
+  getActiveOver
 } = require("../controllers/overController");
 
 // Create new over — only scorer
@@ -18,6 +20,12 @@ router.get("/innings/:inningsId", auth, getOversByInnings);
 
 // Get single over
 router.get("/single/:id", auth, getSingleOver);
+
+// Start first over
+router.post("/start", auth, scorer, startOver);
+
+// Get active over
+router.get("/active/:inningsId", auth, getActiveOver);
 
 module.exports = router;
 

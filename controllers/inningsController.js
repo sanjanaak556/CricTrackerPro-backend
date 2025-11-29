@@ -38,11 +38,14 @@ exports.createInnings = async (req, res) => {
         .json({ message: "Batting and bowling team cannot be same" });
     }
 
+    await Innings.updateMany({ matchId }, { isActive: false });
+
     const newInnings = await Innings.create({
       matchId,
       battingTeam,
       bowlingTeam,
       inningsNumber,
+      isActive: true
     });
 
     match.innings.push(newInnings._id);
@@ -131,3 +134,25 @@ exports.startInnings = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// STEP 3: GET INNINGS
+exports.getInningsByMatchId = async (req, res) => {
+  try {
+    const { matchId } = req.params;
+
+    const innings = await Innings.findOne({
+      matchId,
+      isActive: true
+    });
+
+    if (!innings) {
+      return res.status(404).json({ message: "No innings found for this match" });
+    }
+
+    res.json({ innings });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+

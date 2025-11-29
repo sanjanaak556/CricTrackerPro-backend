@@ -7,9 +7,11 @@ const generateToken = require("../utils/generateToken");
 exports.register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
+
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Missing fields" });  // Basic validation
     }
+
     const existing = await User.findOne({ email });
     if (existing) {
       return res.status(400).json({ message: "User already exists" });   // Check if email already exists
@@ -31,10 +33,17 @@ exports.register = async (req, res) => {
     });
     await user.save();
     await user.populate("role", "roleName");
+
     res.status(201).json({
+      success: true,
       message: "Registration successful",
       token: generateToken(user),
-      user,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role.roleName,
+      },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -50,14 +59,21 @@ exports.login = async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
+
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       return res.status(400).json({ message: "Invalid credentials" });  // Validate password
     }
+
     res.json({
       message: "Login successful",
       token: generateToken(user),
-      user,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role.roleName,
+      },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

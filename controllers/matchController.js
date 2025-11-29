@@ -1,5 +1,6 @@
 const Match = require("../models/Match");
 const Team = require("../models/Team");
+const Player = require("../models/Player");
 const User = require("../models/User");
 const UserRole = require("../models/UserRole");
 
@@ -18,22 +19,13 @@ exports.createMatch = async (req, res) => {
     } = req.body;
 
     if (teamA === teamB) {
-      return res.status(400).json({ message: "A team cannot play against itself" });
+      return res.status(400).json({ message: "A team cannot play itself" });
     }
 
     const team1 = await Team.findById(teamA);
     const team2 = await Team.findById(teamB);
     if (!team1 || !team2) {
       return res.status(404).json({ message: "One or both teams not found" });
-    }
-
-    const validTypes = ["T20", "ODI", "TEST", "OTHER"];
-    if (matchType && !validTypes.includes(matchType)) {
-      return res.status(400).json({ message: "Invalid match type" });
-    }
-
-    if (!venue || !venue.name) {
-      return res.status(400).json({ message: "Venue name is required" });
     }
 
     const match = new Match({
@@ -43,8 +35,8 @@ exports.createMatch = async (req, res) => {
       teamA,
       teamB,
       overs,
-      venue: venue || {},
-      umpires: umpires || [],
+      venue,
+      umpires,
       status: "upcoming",
       currentScore: { runs: 0, wickets: 0, overs: "0.0" }
     });
@@ -73,17 +65,18 @@ exports.getAllMatches = async (req, res) => {
   }
 };
 
-// 3) Get Match By ID
+// 3) Get Match by ID
 exports.getMatchById = async (req, res) => {
   try {
     const match = await Match.findById(req.params.matchId)
       .populate("teamA", "name shortName")
       .populate("teamB", "name shortName")
       .populate("tossWinner", "name shortName")
-      .populate("scorerId", "name email")
-      .populate("playerOfTheMatch", "name role");
+      .populate("scorerId", "name email");
 
-    if (!match) return res.status(404).json({ message: "Match not found" });
+    if (!match) {
+      return res.status(404).json({ message: "Match not found" });
+    }
 
     res.json(match);
 
@@ -96,24 +89,15 @@ exports.getMatchById = async (req, res) => {
 exports.updateMatch = async (req, res) => {
   try {
     const match = await Match.findById(req.params.matchId);
-    if (!match) return res.status(404).json({ message: "Match not found" });
+    if (!match) {
+      return res.status(404).json({ message: "Match not found" });
+    }
 
     const { matchNumber, overs, venue, umpires, status } = req.body;
 
     if (matchNumber !== undefined) match.matchNumber = matchNumber;
     if (overs !== undefined) match.overs = overs;
     if (umpires !== undefined) match.umpires = umpires;
-
-    const validTransitions = {
-      upcoming: ["live", "abandoned", "postponed"],
-      live: ["completed", "abandoned"],
-      completed: []
-    };
-
-    if (status && !validTransitions[match.status].includes(status)) {
-      return res.status(400).json({ message: "Invalid status transition" });
-    }
-
     if (venue) match.venue = { ...match.venue, ...venue };
 
     await match.save();
@@ -133,7 +117,7 @@ exports.deleteMatch = async (req, res) => {
     match.isActive = false;
     await match.save();
 
-    res.json({ message: "Match soft-deleted" });
+    res.json({ message: "Match deleted" });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -144,27 +128,12 @@ exports.deleteMatch = async (req, res) => {
 exports.startMatch = async (req, res) => {
   try {
     const { tossWinner, electedTo } = req.body;
-    const match = await Match.findById(req.params.matchId);
 
+    const match = await Match.findById(req.params.matchId);
     if (!match) return res.status(404).json({ message: "Match not found" });
 
     if (match.status !== "upcoming") {
-      return res.status(400).json({ message: "Match already started or completed" });
-    }
-
-    if (!match.overs || match.overs <= 0) {
-      return res.status(400).json({ message: "Invalid or missing overs value" });
-    }
-
-    if (
-      String(tossWinner) !== String(match.teamA) &&
-      String(tossWinner) !== String(match.teamB)
-    ) {
-      return res.status(400).json({ message: "Toss winner must be one of the two teams" });
-    }
-
-    if (electedTo && !["bat", "bowl"].includes(electedTo)) {
-      return res.status(400).json({ message: "Invalid decision: must be bat or bowl" });
+      return res.status(400).json({ message: "Match already started/completed" });
     }
 
     match.tossWinner = tossWinner;
@@ -188,37 +157,33 @@ exports.completeMatch = async (req, res) => {
     match.status = "completed";
     await match.save();
 
-    res.json({ message: "Match marked as completed", match });
+    res.json({ message: "Match completed", match });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// 8) Assign Scorer
+// 8) Assign Scorer (admin)
 exports.assignScorer = async (req, res) => {
   try {
     const { scorerId } = req.body;
-    const scorer = await User.findById(scorerId);
 
+    const scorer = await User.findById(scorerId);
     if (!scorer) return res.status(404).json({ message: "Scorer not found" });
 
-    // Support both cases:(user.role stored as ObjectId or as plain string)
+    // Check role (string or ObjectId)
     let isScorer = false;
 
-    if (!scorer.role) {
-      isScorer = false;
-    } else if (typeof scorer.role === "string") {
-      // direct string stored in user.role
+    if (typeof scorer.role === "string") {
       isScorer = scorer.role.toLowerCase() === "scorer";
     } else {
-      // likely an ObjectId referencing UserRole
       const roleDoc = await UserRole.findById(scorer.role);
-      isScorer = roleDoc && roleDoc.roleName === "scorer";
+      if (roleDoc && roleDoc.roleName === "scorer") isScorer = true;
     }
 
     if (!isScorer) {
-      return res.status(400).json({ message: "This user is not a scorer" });
+      return res.status(400).json({ message: "User is not a scorer" });
     }
 
     const match = await Match.findById(req.params.matchId);
@@ -240,9 +205,9 @@ exports.updateLiveScore = async (req, res) => {
     const match = await Match.findById(req.params.matchId);
     if (!match) return res.status(404).json({ message: "Match not found" });
 
-    // Only allow assigned scorer to update live score
-    if (!match.scorerId || String(match.scorerId) !== String(req.user._id)) {
-      return res.status(403).json({ message: "You are not assigned as scorer for this match" });
+    // Ensure only assigned scorer updates score
+    if (String(match.scorerId) !== String(req.user._id)) {
+      return res.status(403).json({ message: "Not assigned as scorer" });
     }
 
     const { runs, wickets, overs } = req.body;
@@ -252,7 +217,7 @@ exports.updateLiveScore = async (req, res) => {
     if (overs !== undefined) match.currentScore.overs = overs;
 
     await match.save();
-    res.json({ message: "Live score updated", match });
+    res.json({ message: "Score updated", match });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -262,7 +227,7 @@ exports.updateLiveScore = async (req, res) => {
 // 10) Public Live Matches
 exports.getPublicLiveMatches = async (req, res) => {
   try {
-    const matches = await Match.find({
+    const liveMatches = await Match.find({
       status: "live",
       isActive: true
     })
@@ -270,12 +235,59 @@ exports.getPublicLiveMatches = async (req, res) => {
       .populate("teamA", "name shortName")
       .populate("teamB", "name shortName");
 
-    res.json(matches);
+    res.json(liveMatches);
 
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
+// 11) Get Match Players
+exports.getMatchPlayers = async (req, res) => {
+  try {
+    const match = await Match.findById(req.params.matchId)
+      .populate("teamA")
+      .populate("teamB");
+
+    if (!match) return res.status(404).json({ message: "Match not found" });
+
+    const playersA = await Player.find({ teamId: match.teamA._id });
+    const playersB = await Player.find({ teamId: match.teamB._id });
+
+    res.json({
+      teamA: match.teamA.name,
+      teamB: match.teamB.name,
+      playersA,
+      playersB
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 12) FIXED VERSION — Get Active Match for Scorer
+exports.getActiveMatchForScorer = async (req, res) => {
+  try {
+    const scorerId = req.user.id;
+
+    const match = await Match.findOne({
+      scorerId: scorerId,
+      isActive: true,
+      status: { $in: ["upcoming", "live"] }
+    })
+      .populate("teamA", "name")
+      .populate("teamB", "name");
+
+    if (!match) {
+      return res.status(404).json({ message: "No active match assigned" });
+    }
+
+    res.json({ match });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 

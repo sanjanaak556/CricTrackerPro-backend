@@ -2,6 +2,12 @@ const mongoose = require("mongoose");
 
 const ballSchema = new mongoose.Schema(
   {
+    matchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Match",
+      required: true
+    },
+
     inningsId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Innings",
@@ -16,7 +22,7 @@ const ballSchema = new mongoose.Schema(
 
     ballNumber: {
       type: Number,
-      required: true // 1–6 for legal balls
+      required: true // 1–6 for legal deliveries
     },
 
     striker: {
@@ -61,6 +67,8 @@ const ballSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for better query speed
+ballSchema.index({ matchId: 1 });
 ballSchema.index({ inningsId: 1 });
 ballSchema.index({ overId: 1 });
 

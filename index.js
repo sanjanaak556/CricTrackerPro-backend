@@ -42,8 +42,8 @@ app.use("/api/roles", userRoleRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/players", playerRoutes);
-app.use("/api/matches", matchRoutes);
 app.use("/api/innings", inningsRoutes);
+app.use("/api/matches", matchRoutes);
 app.use("/api/overs", overRoutes);
 app.use("/api/balls", ballRoutes);
 app.use("/api/score-events", scoreEventRoutes);
@@ -51,6 +51,4 @@ app.use("/api/commentary", commentaryRoutes);
 app.use("/api/match-summary", matchSummaryRoutes);
 
 
-// Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+module.exports = app; 

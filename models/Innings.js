@@ -26,6 +26,12 @@ const inningsSchema = new mongoose.Schema(
       required: true,
     },
 
+    currentOverId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Over",
+      default: null
+    },    
+
     totalRuns: { type: Number, default: 0 },
     totalWickets: { type: Number, default: 0 },
     totalOvers: { type: String, default: "0.0" },

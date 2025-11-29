@@ -2,10 +2,9 @@ const Over = require("../models/Over");
 const Innings = require("../models/Innings");
 const Player = require("../models/Player");
 
-//1. Create new over
 exports.createOver = async (req, res) => {
   try {
-    const { inningsId, overNumber, bowler } = req.body;
+    const { inningsId, bowler, matchId } = req.body;
 
     // Validate innings
     const innings = await Innings.findById(inningsId);
@@ -19,17 +18,26 @@ exports.createOver = async (req, res) => {
       return res.status(404).json({ error: "Bowler not found" });
     }
 
-    //  defensive check: require overNumber >= 1
-    if (typeof overNumber !== "number" || overNumber < 1) {
-      return res.status(400).json({ error: "Invalid overNumber (must be >= 1)" });
-    }
+    // Find last over of this innings
+    const lastOver = await Over.find({ inningsId })
+      .sort({ overNumber: -1 })
+      .limit(1);
 
-    // Create Over
+    const nextOverNumber =
+      lastOver.length > 0 ? lastOver[0].overNumber + 1 : 1;
+
+    // Create new Over
     const newOver = await Over.create({
+      matchId,
       inningsId,
-      overNumber,
-      bowler
+      overNumber: nextOverNumber,
+      bowler,
+      balls: []
     });
+
+    // 🔥 IMPORTANT — UPDATE ACTIVE OVER
+    innings.currentOverId = newOver._id;
+    await innings.save();
 
     return res.status(201).json({
       message: "Over created successfully",
@@ -38,15 +46,10 @@ exports.createOver = async (req, res) => {
 
   } catch (error) {
     console.error(error);
-
-    // Handle duplicate overNumber (unique index) more gracefully
-    if (error.code === 11000) {
-      return res.status(400).json({ error: "Over number already exists for this innings" });
-    }
-
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 //2. Get all overs of a specific innings
 exports.getOversByInnings = async (req, res) => {
@@ -100,5 +103,64 @@ exports.getSingleOver = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+// 4. START FIRST OVER
+exports.startOver = async (req, res) => {
+  try {
+    const { inningsId, bowler } = req.body;
+
+    const innings = await Innings.findById(inningsId);
+    if (!innings) return res.status(404).json({ error: "Innings not found" });
+
+    // Determine next over number
+    const existingOvers = await Over.find({ inningsId });
+    const overNumber = existingOvers.length + 1; // 1,2,3,...
+
+    const newOver = await Over.create({
+      matchId: innings.matchId,
+      inningsId,
+      overNumber,
+      bowler,
+      balls: []
+    });
+
+    innings.currentOverId = newOver._id;
+    await innings.save();
+
+    return res.status(201).json({
+      message: "Over started",
+      over: newOver
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 5. GET ACTIVE OVER
+exports.getActiveOver = async (req, res) => {
+  debugger
+  try {
+    const { inningsId } = req.params;
+
+    const innings = await Innings.findById(inningsId);
+    if (!innings) {
+      return res.status(404).json({ error: "Innings not found" });
+    }
+    console.log(innings)
+    if (!innings.currentOverId) {
+      return res.json({ activeOver: null });
+    }
+
+    const over = await Over.findById(innings.currentOverId);
+
+    return res.json({ activeOver: over });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
 
 
