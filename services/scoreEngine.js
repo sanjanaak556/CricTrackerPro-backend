@@ -14,10 +14,10 @@ function getExtraRuns(extraType, runs) {
   switch (extraType) {
     case "wide":
     case "noball":
-      return 1; // Extra run for wide/no-ball
+      return 1;
     case "bye":
     case "legbye":
-      return runs; // Counted as extras
+      return runs;
     default:
       return 0;
   }
@@ -32,7 +32,7 @@ function isLegal(extraType) {
 ----------------------------------------------------- */
 function generateCommentary(ball, innings, currentOver, currentBall) {
   let text = "";
-  let type = "RUN"; // default event type
+  let type = "RUN";
 
   const striker = innings.striker;
   const bowler = ball.bowler;
@@ -63,9 +63,7 @@ function generateCommentary(ball, innings, currentOver, currentBall) {
     type = "DOT";
   }
 
-  // Include current over and ball number
   text += ` (Over ${currentOver}.${currentBall})`;
-
   return { text, type };
 }
 
@@ -86,26 +84,39 @@ async function processBall(ball) {
       return;
     }
 
-    /* -----------------------------------------------------
-       1️⃣ CALCULATE RUNS AND EXTRAS
-    ----------------------------------------------------- */
+    /* ---------------------------
+       PRE-VALIDATION: prevent consecutive-over bowler
+       (must run BEFORE we save the ball into the over)
+       - If this is the first ball of an over (over.balls.length === 0)
+       - AND innings.lastOverBowler equals current ball's bowler
+         -> reject and emit bowlerNotAllowed
+    ---------------------------- */
+    if (
+      innings.lastOverBowler &&
+      over.balls.length === 0 && // first ball of the over
+      innings.lastOverBowler.toString() === ball.bowler.toString()
+    ) {
+      io.to(`match_${matchId}`).emit("bowlerNotAllowed", {
+        reason: "consecutive_over",
+        message: "Bowler cannot bowl consecutive overs. Please select another bowler.",
+      });
+      return; // do not process this ball
+    }
+
+    /* 1️⃣ CALCULATE RUNS AND EXTRAS */
     const extraRuns = getExtraRuns(ball.extraType, ball.runs);
     const totalRuns = ball.runs + extraRuns;
     innings.totalRuns += totalRuns;
 
     if (ball.isWicket) innings.totalWickets += 1;
 
-    // Add ball to over
+    // Add ball to over (moved AFTER pre-validation)
     over.balls.push(ball._id);
     await over.save();
 
-    /* -----------------------------------------------------
-       2️⃣ LEGAL BALL & BALL NUMBER UPDATE
-    ----------------------------------------------------- */
+    /* 2️⃣ LEGAL BALL & BALL NUMBER UPDATE */
     let legal = isLegal(ball.extraType);
-    let [currentOver, currentBall] = innings.totalOvers
-      .split(".")
-      .map(Number);
+    let [currentOver, currentBall] = innings.totalOvers.split(".").map(Number);
 
     if (legal) {
       currentBall += 1;
@@ -117,26 +128,27 @@ async function processBall(ball) {
 
     innings.totalOvers = `${currentOver}.${currentBall}`;
 
-    /* -----------------------------------------------------
-       3️⃣ STRIKE ROTATION
-    ----------------------------------------------------- */
+    /* 3️⃣ STRIKE ROTATION & WICKET EMIT */
     let striker = innings.striker;
     let nonStriker = innings.nonStriker;
 
-    // Rotate strike on odd runs (if legal)
     if (legal && !ball.isWicket && ball.runs % 2 === 1) {
       [striker, nonStriker] = [nonStriker, striker];
     }
 
-    // Wicket: striker will be replaced manually on frontend
-    if (ball.isWicket) striker = innings.striker;
+    if (ball.isWicket) {
+      striker = innings.striker; // keep current until new batter chosen
+
+      io.to(`match_${matchId}`).emit("newBatterNeeded", {
+        which: "striker",
+        message: "Select new batsman (striker)."
+      });
+    }
 
     innings.striker = striker;
     innings.nonStriker = nonStriker;
 
-    /* -----------------------------------------------------
-       4️⃣ OVER COMPLETION & AUTO-CREATE NEXT OVER
-    ----------------------------------------------------- */
+    /* 4️⃣ OVER COMPLETION & AUTO-CREATE NEXT OVER */
     const overCompleted = legal && currentBall === 0 && over.balls.length === 6;
 
     if (overCompleted) {
@@ -145,7 +157,18 @@ async function processBall(ball) {
         message: `Over ${currentOver - 1} completed`,
       });
 
-      // Create next over safely
+      // Prevent bowler from bowling consecutive overs (emit to frontend)
+      if (
+        innings.lastOverBowler &&
+        innings.currentBowler &&
+        innings.lastOverBowler.toString() === innings.currentBowler.toString()
+      ) {
+        io.to(`match_${matchId}`).emit("bowlerNotAllowed", {
+          reason: "consecutive_over",
+          message: "Bowler cannot bowl consecutive overs. Please select another bowler.",
+        });
+      }
+
       const newOver = await Over.create({
         matchId,
         inningsId,
@@ -156,13 +179,34 @@ async function processBall(ball) {
 
       innings.currentOverId = newOver._id;
 
-      // Rotate strike at end of over
+      ensureBowlerStats(innings);
+      const finishedBowler = over.bowler || innings.currentBowler;
+      if (finishedBowler) {
+        innings.bowlerOvers[finishedBowler] =
+          (innings.bowlerOvers[finishedBowler] || 0) + 1;
+        // update lastOverBowler so next over validation works
+        innings.lastOverBowler = finishedBowler;
+      }
+
+      const maxPerBowler = getMaxOversPerBowler(match);
+      const chosenBowler = innings.currentBowler;
+
+      if (chosenBowler) {
+        const used = innings.bowlerOvers[chosenBowler] || 0;
+
+        if (used >= maxPerBowler) {
+          io.to(`match_${matchId}`).emit("bowlerNotAllowed", {
+            reason: "max_overs_reached",
+            message: `This bowler has already bowled ${used} overs (max ${maxPerBowler}). Choose a different bowler.`,
+            over: currentOver,
+          });
+        }
+      }
+
       [innings.striker, innings.nonStriker] = [innings.nonStriker, innings.striker];
     }
 
-    /* -----------------------------------------------------
-       5️⃣ CHECK INNINGS COMPLETION
-    ----------------------------------------------------- */
+    /* 5️⃣ CHECK INNINGS COMPLETION */
     const maxOvers = match.overs;
     const allOut = innings.totalWickets >= 10;
     const oversFinished = currentOver >= maxOvers;
@@ -184,9 +228,7 @@ async function processBall(ball) {
 
     await innings.save();
 
-    /* -----------------------------------------------------
-       6️⃣ EMIT LIVE SCORE
-    ----------------------------------------------------- */
+    /* 6️⃣ EMIT LIVE SCORE */
     io.to(`match_${matchId}`).emit("liveScoreUpdate", {
       matchId,
       inningsId,
@@ -203,9 +245,7 @@ async function processBall(ball) {
       },
     });
 
-    /* -----------------------------------------------------
-       7️⃣ COMMENTARY & EVENT EMITS WITH SCORER TEXT
-    ----------------------------------------------------- */
+    /* 7️⃣ COMMENTARY & EVENT EMITS WITH SCORER TEXT */
     let { text: commentaryText, type: eventType } = generateCommentary(
       ball,
       innings,
@@ -213,7 +253,6 @@ async function processBall(ball) {
       currentBall
     );
 
-    // Append scorer's custom commentary if provided
     if (ball.customCommentary && ball.customCommentary.trim() !== "") {
       commentaryText = `${ball.customCommentary} — ${commentaryText}`;
     }
@@ -233,6 +272,15 @@ async function processBall(ball) {
   }
 }
 
+/* ---------------------
+  BOWLER UTILS (safe, minimal)
+--------------------- */
+function getMaxOversPerBowler(match) {
+  return Math.floor(match.overs / 5);
+}
+
+function ensureBowlerStats(innings) {
+  innings.bowlerOvers = innings.bowlerOvers || {};
+}
+
 module.exports = { processBall };
-
-
