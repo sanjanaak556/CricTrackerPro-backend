@@ -27,7 +27,7 @@ function isLegal(extraType) {
   return !(extraType === "wide" || extraType === "noball");
 }
 
-/* -----------------------------------------------------
+/* --------------------------------------------------
    HELPER: GENERATE DESCRIPTIVE COMMENTARY
 ----------------------------------------------------- */
 function generateCommentary(ball, innings, currentOver, currentBall) {
@@ -76,6 +76,15 @@ async function processBall(ball) {
   try {
     const io = getIO();
     const { matchId, inningsId, overId } = ball;
+
+    // basic validation: these must exist
+    if (!matchId || !inningsId || !overId) {
+      console.warn("processBall missing match/innings/over id, skipping:", { matchId, inningsId, overId });
+      return;
+    }
+
+    // make sure runs is a number
+    ball.runs = typeof ball.runs === "number" ? ball.runs : 0;
 
     const match = await Match.findById(matchId);
     const innings = await Innings.findById(inningsId);

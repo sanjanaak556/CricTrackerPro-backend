@@ -17,7 +17,8 @@ const {
     updateLiveScore,
     getPublicLiveMatches,
     getMatchPlayers,
-    getActiveMatchForScorer
+    getActiveMatchForScorer,
+    getLoggedInLiveMatches
 } = require("../controllers/matchController");
 
 // Create match (admin only)
@@ -31,6 +32,9 @@ router.get("/scorer/active", auth, scorer, getActiveMatchForScorer);
 
 // Public minimal live section (no auth)
 router.get("/public/live", getPublicLiveMatches);
+
+// live matches (with auth)
+router.get("/live", auth, getLoggedInLiveMatches);
 
 // Get match players
 router.get("/:matchId/players", auth, getMatchPlayers);

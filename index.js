@@ -3,11 +3,13 @@ dotenv.config();
 
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 const connectDB = require("./config/db");
 
 const authRoutes = require("./routes/authRoutes");
 const userRoleRoutes = require("./routes/userRoleRoutes");
 const userRoutes = require("./routes/userRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 const teamRoutes = require("./routes/teamRoutes");
 const playerRoutes = require("./routes/playerRoutes");
 const matchRoutes = require("./routes/matchRoutes");
@@ -17,6 +19,7 @@ const ballRoutes = require("./routes/ballRoutes");
 const scoreEventRoutes = require("./routes/scoreEventRoutes");
 const commentaryRoutes = require("./routes/commentaryRoutes")
 const matchSummaryRoutes = require("./routes/matchSummaryRoutes");
+const viewerRoutes = require("./routes/viewerRoutes");
 
 const app = express();
 
@@ -27,7 +30,10 @@ app.use(cors({
     origin: "http://localhost:5173",
     credentials: true,
   }));
-  
+
+// Serve static files for uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 
 // Connect DB
 connectDB();
@@ -40,6 +46,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/roles", userRoleRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/api/teams", teamRoutes);
 app.use("/api/players", playerRoutes);
 app.use("/api/innings", inningsRoutes);
@@ -49,6 +56,6 @@ app.use("/api/balls", ballRoutes);
 app.use("/api/score-events", scoreEventRoutes);
 app.use("/api/commentary", commentaryRoutes);
 app.use("/api/match-summary", matchSummaryRoutes);
+app.use("/api/viewer", viewerRoutes);
 
-
-module.exports = app; 
+module.exports = app;

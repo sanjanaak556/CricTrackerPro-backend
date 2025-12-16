@@ -2,17 +2,28 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/authMiddleware");
 const admin = require("../middleware/adminMiddleware");
-const userController = require("../controllers/userController");
+const upload = require("../utils/upload");
 
-// self- routes
-router.get("/me", auth, userController.getMe);
-router.put("/me", auth, userController.updateMe);
-router.delete("/me", auth, userController.deleteMe);
 
-// admin
-router.get("/", auth, admin, userController.getUsers);
-router.patch("/:userId/role", auth, admin, userController.updateUserRole);
-router.delete("/:userId", auth, admin, userController.deleteUser);
+const {
+  getMe,
+  updateMe,
+  deleteMe,
+  deleteProfileImage,
+  getUsers,
+  updateUserRole,
+  deleteUser,
+} = require("../controllers/userController");
+
+// User routes
+router.get("/me", auth, getMe);
+router.put("/me", auth, upload.single("image"), updateMe);
+router.delete("/me/image", auth, deleteProfileImage);
+router.delete("/me", auth, deleteMe);
+
+// Admin routes
+router.get("/", auth, admin, getUsers);
+router.patch("/:userId/role", auth, admin, updateUserRole);
+router.delete("/:userId", auth, admin, deleteUser);
 
 module.exports = router;
-

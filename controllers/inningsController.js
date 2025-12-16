@@ -45,7 +45,7 @@ exports.createInnings = async (req, res) => {
       battingTeam,
       bowlingTeam,
       inningsNumber,
-      isActive: true
+      isActive: true,
     });
 
     match.innings.push(newInnings._id);
@@ -135,24 +135,16 @@ exports.startInnings = async (req, res) => {
   }
 };
 
-// STEP 3: GET INNINGS
+// STEP 3: GET INNINGS 
 exports.getInningsByMatchId = async (req, res) => {
   try {
     const { matchId } = req.params;
 
-    const innings = await Innings.findOne({
-      matchId,
-      isActive: true
-    });
+    const innings = await Innings.find({ matchId }).sort({ inningsNumber: 1 });
 
-    if (!innings) {
-      return res.status(404).json({ message: "No innings found for this match" });
-    }
-
-    res.json({ innings });
-
+    // ALWAYS return array (even empty)
+    return res.status(200).json(innings);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 };
-

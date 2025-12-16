@@ -36,6 +36,16 @@ exports.addPlayer = async (req, res) => {
   }
 };
 
+// GET ALL PLAYERS
+exports.getAllPlayers = async (req, res) => {
+  try {
+    const players = await Player.find().select("name role team image");
+    res.json(players);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // GET PLAYERS OF ONE TEAM
 exports.getPlayersByTeam = async (req, res) => {
   try {
