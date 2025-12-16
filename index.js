@@ -17,7 +17,7 @@ const inningsRoutes = require("./routes/inningsRoutes");
 const overRoutes = require("./routes/overRoutes");
 const ballRoutes = require("./routes/ballRoutes");
 const scoreEventRoutes = require("./routes/scoreEventRoutes");
-const commentaryRoutes = require("./routes/commentaryRoutes")
+const commentaryRoutes = require("./routes/commentaryRoutes");
 const matchSummaryRoutes = require("./routes/matchSummaryRoutes");
 const viewerRoutes = require("./routes/viewerRoutes");
 
@@ -26,21 +26,22 @@ const app = express();
 // Middleware
 app.use(express.json());
 
-app.use(cors({
-    origin: "http://localhost:5173",
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || "http://localhost:5173",
     credentials: true,
-  }));
+  })
+);
 
 // Serve static files for uploads
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Connect DB
 connectDB();
 
 // Test route
 app.get("/", (req, res) => {
-    res.send("CricTrackerPro Server Running...");
+  res.send("CricTrackerPro Server Running...");
 });
 
 app.use("/api/auth", authRoutes);
