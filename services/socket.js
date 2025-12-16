@@ -6,7 +6,7 @@ module.exports = {
 
     io = new Server(server, {
       cors: {
-        origin: "http://localhost:5173",
+        origin: process.env.CLIENT_URL || "*",
         methods: ["GET", "POST"],
         credentials: true,
       },
@@ -55,7 +55,7 @@ module.exports = {
       });
 
       // ------------------------------------------------------
-      // IMPORTANT EVENTS (Wicket, Four, Six, No-ball etc.)
+      // IMPORTANT EVENTS
       // ------------------------------------------------------
       socket.on("eventUpdate", ({ matchId, event }) => {
         const room = `match_${matchId}`;
@@ -74,7 +74,6 @@ module.exports = {
     return io;
   },
 
-  // For backend usage (scoreEngine.js etc.)
   getIO: () => {
     if (!io) {
       throw new Error("Socket.io not initialized yet!");
@@ -82,4 +81,3 @@ module.exports = {
     return io;
   },
 };
-
