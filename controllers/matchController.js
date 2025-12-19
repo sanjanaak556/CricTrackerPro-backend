@@ -16,7 +16,6 @@ exports.createMatch = async (req, res) => {
       teamB,
       overs,
       venue,
-      scheduledAt,
       umpires,
       scorerId,
     } = req.body;
@@ -30,6 +29,10 @@ exports.createMatch = async (req, res) => {
     if (!team1 || !team2) {
       return res.status(404).json({ message: "One or both teams not found" });
     }
+
+    //  Proper scheduledAt for today (UTC-safe)
+    const scheduledAt = new Date();
+    scheduledAt.setUTCHours(0, 0, 0, 0);
 
     const match = new Match({
       matchNumber,
@@ -91,8 +94,7 @@ exports.getMatchById = async (req, res) => {
       .populate("teamA", "name shortName logo")
       .populate("teamB", "name shortName logo")
       .populate("tossWinner", "name shortName logo")
-      .populate("scorerId", "name email")
-      .populate("winnerTeam", "name shortName logo");
+      .populate("scorerId", "name email");
 
     if (!match) {
       return res.status(404).json({ message: "Match not found" });
@@ -262,7 +264,7 @@ exports.getPublicLiveMatches = async (req, res) => {
   }
 };
 
-// Get live matches for logged-in users
+// 11) Get live matches for logged-in users
 exports.getLoggedInLiveMatches = async (req, res) => {
   try {
     const liveMatches = await Match.find({
@@ -272,52 +274,20 @@ exports.getLoggedInLiveMatches = async (req, res) => {
       .select(
         "matchName matchType teamA teamB tossWinner scorerId currentScore overs status venue umpires"
       )
+
       .populate("teamA", "name shortName logo")
       .populate("teamB", "name shortName logo")
+
       .populate("tossWinner", "name shortName logo")
       .populate("scorerId", "name email")
       .populate("venue", "name city country")
       .populate("umpires", "name role")
-      .populate({
-        path: "innings",
-        select:
-          "inningsNumber battingTeam bowlingTeam totalRuns totalWickets totalOvers striker nonStriker currentBowler currentOverId completed",
-        populate: [
-          { path: "battingTeam", select: "name shortName logo" },
-          { path: "bowlingTeam", select: "name shortName logo" },
-          { path: "striker", select: "name" },
-          { path: "nonStriker", select: "name" },
-          { path: "currentBowler", select: "name" },
-          {
-            path: "currentOverId",
-            select: "overNumber bowler balls",
-            populate: [
-              { path: "bowler", select: "name" },
-              {
-                path: "balls",
-                select:
-                  "ballNumber runs striker nonStriker bowler isWicket extraType",
-                populate: [
-                  { path: "striker", select: "name" },
-                  { path: "nonStriker", select: "name" },
-                  { path: "bowler", select: "name" },
-                ],
-              },
-            ],
-          },
-        ],
-      })
       .lean();
 
-    const formatted = liveMatches.map((m) => ({
-      ...m,
-      scorer: m.scorerId || null,
-    }));
-
-    res.json(formatted);
+    res.json(liveMatches);
   } catch (err) {
-    console.error("Detailed Live Error:", err.message);
-    res.status(500).json({ error: err.message });
+    console.error("Live matches error:", err);
+    res.status(500).json({ message: "Failed to load live matches" });
   }
 };
 

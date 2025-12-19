@@ -20,6 +20,7 @@ const scoreEventRoutes = require("./routes/scoreEventRoutes");
 const commentaryRoutes = require("./routes/commentaryRoutes");
 const matchSummaryRoutes = require("./routes/matchSummaryRoutes");
 const viewerRoutes = require("./routes/viewerRoutes");
+const scorerRoutes = require("./routes/scorerRoutes")
 
 const app = express();
 
@@ -58,5 +59,6 @@ app.use("/api/score-events", scoreEventRoutes);
 app.use("/api/commentary", commentaryRoutes);
 app.use("/api/match-summary", matchSummaryRoutes);
 app.use("/api/viewer", viewerRoutes);
+app.use("/api/scorer", scorerRoutes);
 
 module.exports = app;
