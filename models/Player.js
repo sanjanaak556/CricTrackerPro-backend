@@ -13,7 +13,7 @@ const playerSchema = new mongoose.Schema(
       ref: "Team",
       required: true,
     },
-    image: { type: String, required: true },
+    image: { type: String },
     runs: { type: Number, default: 0 },
     wickets: { type: Number, default: 0 },
     matchesPlayed: { type: Number, default: 0 },

@@ -74,6 +74,7 @@ exports.getAllMatches = async (req, res) => {
       .sort({ scheduledAt: 1, createdAt: -1 })
       .populate("teamA", "name shortName logo")
       .populate("teamB", "name shortName logo")
+      .populate("tossWinner", "name shortName logo") // ADDED THIS LINE
       .populate("scorerId", "name email")
       .populate("playerOfTheMatch", "name role")
       .populate("winnerTeam", "name shortName logo");
@@ -114,15 +115,28 @@ exports.updateMatch = async (req, res) => {
       return res.status(404).json({ message: "Match not found" });
     }
 
-    const { matchNumber, overs, venue, umpires } = req.body;
+    const { matchNumber, overs, venue, umpires, tossWinner, electedTo, status } = req.body;
 
     if (matchNumber !== undefined) match.matchNumber = matchNumber;
     if (overs !== undefined) match.overs = overs;
     if (umpires !== undefined) match.umpires = umpires;
     if (venue) match.venue = { ...match.venue, ...venue };
+    
+    // Add these lines to handle toss and status updates
+    if (tossWinner !== undefined) match.tossWinner = tossWinner;
+    if (electedTo !== undefined) match.electedTo = electedTo;
+    if (status !== undefined) match.status = status;
 
     await match.save();
-    res.json({ message: "Match updated", match });
+    
+    // Populate the tossWinner field before returning
+    const updatedMatch = await Match.findById(req.params.matchId)
+      .populate("teamA", "name shortName logo")
+      .populate("teamB", "name shortName logo")
+      .populate("tossWinner", "name shortName logo")
+      .populate("scorerId", "name email");
+
+    res.json({ message: "Match updated", match: updatedMatch });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -274,10 +288,8 @@ exports.getLoggedInLiveMatches = async (req, res) => {
       .select(
         "matchName matchType teamA teamB tossWinner scorerId currentScore overs status venue umpires"
       )
-
       .populate("teamA", "name shortName logo")
       .populate("teamB", "name shortName logo")
-
       .populate("tossWinner", "name shortName logo")
       .populate("scorerId", "name email")
       .populate("venue", "name city country")
