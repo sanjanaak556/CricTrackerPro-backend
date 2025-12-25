@@ -125,7 +125,16 @@ async function processBall(ball) {
 
     /* 2️⃣ LEGAL BALL & BALL NUMBER UPDATE */
     let legal = isLegal(ball.extraType);
-    let [currentOver, currentBall] = innings.totalOvers.split(".").map(Number);
+    // Defensive parsing: ensure we get valid numbers even if totalOvers is malformed
+    let [currentOver, currentBall] = [0,0];
+    try {
+      const parts = String(innings.totalOvers || "0.0").split(".").map(Number);
+      currentOver = Number.isFinite(parts[0]) ? parts[0] : 0;
+      currentBall = Number.isFinite(parts[1]) ? parts[1] : 0;
+    } catch (e) {
+      currentOver = 0;
+      currentBall = 0;
+    }
 
     if (legal) {
       currentBall += 1;
@@ -166,28 +175,6 @@ async function processBall(ball) {
         message: `Over ${currentOver - 1} completed`,
       });
 
-      // Prevent bowler from bowling consecutive overs (emit to frontend)
-      if (
-        innings.lastOverBowler &&
-        innings.currentBowler &&
-        innings.lastOverBowler.toString() === innings.currentBowler.toString()
-      ) {
-        io.to(`match_${matchId}`).emit("bowlerNotAllowed", {
-          reason: "consecutive_over",
-          message: "Bowler cannot bowl consecutive overs. Please select another bowler.",
-        });
-      }
-
-      const newOver = await Over.create({
-        matchId,
-        inningsId,
-        overNumber: currentOver,
-        bowler: innings.currentBowler,
-        balls: [],
-      });
-
-      innings.currentOverId = newOver._id;
-
       ensureBowlerStats(innings);
       const finishedBowler = over.bowler || innings.currentBowler;
       if (finishedBowler) {
@@ -197,22 +184,72 @@ async function processBall(ball) {
         innings.lastOverBowler = finishedBowler;
       }
 
+      // Prepare to auto-start next over only if a valid currentBowler is set and allowed
       const maxPerBowler = getMaxOversPerBowler(match);
       const chosenBowler = innings.currentBowler;
 
-      if (chosenBowler) {
+      // Swap striker/nonStriker first
+      [innings.striker, innings.nonStriker] = [innings.nonStriker, innings.striker];
+      // Record the swap was applied for this completed over
+      try {
+        innings.lastSwapOverNumber = currentOver - 1;
+      } catch (e) {
+        /* ignore */
+      }
+
+      // If no bowler chosen, prompt UI to select one
+      if (!chosenBowler) {
+        innings.currentOverId = null;
+        innings.currentBowler = null;
+        io.to(`match_${matchId}`).emit("chooseBowler", {
+          reason: "no_bowler",
+          message: "Select a bowler to start the next over."
+        });
+      } else {
         const used = innings.bowlerOvers[chosenBowler] || 0;
 
+        // If chosen bowler has exceeded quota, prompt change
         if (used >= maxPerBowler) {
+          innings.currentBowler = null;
+          innings.currentOverId = null;
           io.to(`match_${matchId}`).emit("bowlerNotAllowed", {
             reason: "max_overs_reached",
             message: `This bowler has already bowled ${used} overs (max ${maxPerBowler}). Choose a different bowler.`,
             over: currentOver,
           });
+
+          io.to(`match_${matchId}`).emit("chooseBowler", {
+            reason: "max_overs_reached",
+            message: "Select a different bowler.",
+          });
+        }
+
+        // If chosen bowler would be bowling consecutive overs, prompt change
+        else if (innings.lastOverBowler && innings.lastOverBowler.toString() === chosenBowler.toString()) {
+          innings.currentBowler = null;
+          innings.currentOverId = null;
+          io.to(`match_${matchId}`).emit("bowlerNotAllowed", {
+            reason: "consecutive_over",
+            message: "Bowler cannot bowl consecutive overs. Please select another bowler.",
+          });
+
+          io.to(`match_${matchId}`).emit("chooseBowler", {
+            reason: "consecutive_over",
+            message: "Select a different bowler for the next over.",
+          });
+        } else {
+          // All good — create next over automatically
+          const newOver = await Over.create({
+            matchId,
+            inningsId,
+            overNumber: currentOver,
+            bowler: chosenBowler,
+            balls: [],
+          });
+
+          innings.currentOverId = newOver._id;
         }
       }
-
-      [innings.striker, innings.nonStriker] = [innings.nonStriker, innings.striker];
     }
 
     /* 5️⃣ CHECK INNINGS COMPLETION */
@@ -221,18 +258,36 @@ async function processBall(ball) {
     const oversFinished = currentOver >= maxOvers;
 
     if (allOut || oversFinished) {
-      innings.completed = true;
-
-      io.to(`match_${matchId}`).emit("inningsComplete", {
+      // Log details to aid debugging if unexpected completion occurs
+      console.log("⚠️ Innings completion check:", {
         inningsId,
-        runs: innings.totalRuns,
-        wickets: innings.totalWickets,
+        allOut,
+        oversFinished,
+        inningsTotalOvers: innings.totalOvers,
+        inningsTotalWickets: innings.totalWickets,
+        matchOvers: match.overs,
+        currentOver,
+        currentBall,
+        inningsCompletedBefore: innings.completed,
       });
 
-      if (match.currentInnings === 1) match.currentInnings = 2;
-      else match.isCompleted = true;
+      // Only mark and emit completed if it wasn't already completed
+      if (!innings.completed) {
+        innings.completed = true;
 
-      await match.save();
+        io.to(`match_${matchId}`).emit("inningsComplete", {
+          inningsId,
+          runs: innings.totalRuns,
+          wickets: innings.totalWickets,
+        });
+
+        if (match.currentInnings === 1) match.currentInnings = 2;
+        else match.isCompleted = true;
+
+        await match.save();
+      } else {
+        console.log("⚠️ Innings was already marked completed — skipping emit.");
+      }
     }
 
     await innings.save();

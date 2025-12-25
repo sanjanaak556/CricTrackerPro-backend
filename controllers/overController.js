@@ -12,19 +12,42 @@ exports.createOver = async (req, res) => {
       return res.status(404).json({ error: "Innings not found" });
     }
 
+    // Prevent creating a new over if there's an active over that is not complete
+    if (innings.currentOverId) {
+      const active = await Over.findById(innings.currentOverId).populate('balls');
+      const legalCount = active.balls.filter(b => b.isLegalDelivery).length;
+      if (legalCount < 6) {
+        return res.status(400).json({ error: 'Current over still active. Finish it before creating a new over.' });
+      }
+    }
+
     // Validate bowler
     const bowlerPlayer = await Player.findById(bowler);
     if (!bowlerPlayer) {
       return res.status(404).json({ error: "Bowler not found" });
     }
 
-    // Find last over of this innings
+    // Ensure bowler is not the same as last over's bowler
     const lastOver = await Over.find({ inningsId })
       .sort({ overNumber: -1 })
       .limit(1);
 
-    const nextOverNumber =
-      lastOver.length > 0 ? lastOver[0].overNumber + 1 : 1;
+    if (lastOver.length > 0) {
+      const lastBowler = lastOver[0].bowler?.toString();
+      if (lastBowler && lastBowler === bowler.toString()) {
+        return res.status(400).json({ error: 'Bowler cannot bowl consecutive overs.' });
+      }
+    }
+
+    const lastOverNumber = lastOver.length > 0 ? lastOver[0].overNumber : 0;
+    const nextOverNumber = lastOverNumber > 0 ? lastOverNumber + 1 : 1;
+
+    // If the striker swap for the last completed over hasn't been applied, do it now
+    if (lastOverNumber > 0 && (typeof innings.lastSwapOverNumber !== 'number' || innings.lastSwapOverNumber !== lastOverNumber)) {
+      [innings.striker, innings.nonStriker] = [innings.nonStriker, innings.striker];
+      innings.lastSwapOverNumber = lastOverNumber;
+      await innings.save();
+    }
 
     // Create new Over
     const newOver = await Over.create({
@@ -35,8 +58,9 @@ exports.createOver = async (req, res) => {
       balls: []
     });
 
-    // 🔥 IMPORTANT — UPDATE ACTIVE OVER
+    // 🔥 IMPORTANT — UPDATE ACTIVE OVER and set currentBowler
     innings.currentOverId = newOver._id;
+    innings.currentBowler = bowler;
     await innings.save();
 
     return res.status(201).json({
@@ -112,9 +136,37 @@ exports.startOver = async (req, res) => {
     const innings = await Innings.findById(inningsId);
     if (!innings) return res.status(404).json({ error: "Innings not found" });
 
-    // Determine next over number
+    // If there's an active over, ensure it is complete
+    if (innings.currentOverId) {
+      const active = await Over.findById(innings.currentOverId).populate('balls');
+      const legalCount = active.balls.filter(b => b.isLegalDelivery).length;
+      if (legalCount < 6) {
+        return res.status(400).json({ error: 'Current over still active. Finish it before starting a new over.' });
+      }
+    }
+
+    // Prevent consecutive over bowler
+    const lastOver = await Over.find({ inningsId })
+      .sort({ overNumber: -1 })
+      .limit(1);
+
+    if (lastOver.length > 0) {
+      const lastBowler = lastOver[0].bowler?.toString();
+      if (lastBowler && lastBowler === bowler.toString()) {
+        return res.status(400).json({ error: 'Bowler cannot bowl consecutive overs.' });
+      }
+    }
+
     const existingOvers = await Over.find({ inningsId });
-    const overNumber = existingOvers.length + 1; // 1,2,3,...
+    const lastOverNumber = existingOvers.length; // number of completed overs
+    const overNumber = lastOverNumber + 1; // next over number
+
+    // If striker swap for last completed over hasn't been applied yet, apply it
+    if (lastOverNumber > 0 && (typeof innings.lastSwapOverNumber !== 'number' || innings.lastSwapOverNumber !== lastOverNumber)) {
+      [innings.striker, innings.nonStriker] = [innings.nonStriker, innings.striker];
+      innings.lastSwapOverNumber = lastOverNumber;
+      await innings.save();
+    }
 
     const newOver = await Over.create({
       matchId: innings.matchId,
@@ -125,6 +177,7 @@ exports.startOver = async (req, res) => {
     });
 
     innings.currentOverId = newOver._id;
+    innings.currentBowler = bowler;
     await innings.save();
 
     return res.status(201).json({
@@ -139,7 +192,6 @@ exports.startOver = async (req, res) => {
 
 // 5. GET ACTIVE OVER
 exports.getActiveOver = async (req, res) => {
-  debugger
   try {
     const { inningsId } = req.params;
 
@@ -147,14 +199,25 @@ exports.getActiveOver = async (req, res) => {
     if (!innings) {
       return res.status(404).json({ error: "Innings not found" });
     }
-    console.log(innings)
+
     if (!innings.currentOverId) {
-      return res.json({ activeOver: null });
+      return res.json({ activeOver: null, legalBalls: 0 });
     }
 
-    const over = await Over.findById(innings.currentOverId);
+    const over = await Over.findById(innings.currentOverId)
+      .populate('bowler', 'name')
+      .populate({
+        path: 'balls',
+        populate: [
+          { path: 'striker', select: 'name' },
+          { path: 'nonStriker', select: 'name' },
+          { path: 'bowler', select: 'name' }
+        ]
+      });
 
-    return res.json({ activeOver: over });
+    const legalBalls = over.balls.filter(b => b.isLegalDelivery).length;
+
+    return res.json({ activeOver: over, legalBalls });
 
   } catch (err) {
     res.status(500).json({ error: err.message });

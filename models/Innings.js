@@ -47,6 +47,9 @@ const inningsSchema = new mongoose.Schema(
       },
     ],
 
+    // Track which over number the last striker/non-striker swap was applied for
+    lastSwapOverNumber: { type: Number, default: 0 },
+
     completed: { type: Boolean, default: false },
 
     isActive: { type: Boolean, default: true },

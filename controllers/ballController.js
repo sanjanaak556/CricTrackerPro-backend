@@ -51,6 +51,27 @@ exports.createBall = async (req, res) => {
 
     // Auto ball number
     const existingBalls = await Ball.find({ overId });
+
+    // PRE-VALIDATION: prevent bowler bowling consecutive overs when starting an over
+    if (
+      innings.lastOverBowler &&
+      existingBalls.length === 0 &&
+      innings.lastOverBowler.toString() === bowler.toString()
+    ) {
+      return res.status(400).json({ error: 'Bowler cannot bowl consecutive overs.' });
+    }
+
+    // Prevent more than 6 legal deliveries in an over
+    const legalCount = existingBalls.filter(b => b.isLegalDelivery).length;
+    if (isLegalDelivery && legalCount >= 6) {
+      return res.status(400).json({ error: 'This over already has 6 legal deliveries.' });
+    }
+
+    // Ensure the ball's bowler matches the over's assigned bowler
+    if (over.bowler && over.bowler.toString() !== bowler.toString()) {
+      return res.status(400).json({ error: 'Bowler does not match the assigned over bowler.' });
+    }
+
     const ballNumber = existingBalls.length + 1;
 
     // Create Ball
