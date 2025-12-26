@@ -96,7 +96,14 @@ exports.getMatchById = async (req, res) => {
       .populate("teamB", "name shortName logo")
       .populate("tossWinner", "name shortName logo")
       .populate("scorerId", "name email")
-      .populate("currentInnings");
+      .populate({
+        path: "currentInnings",
+        populate: [
+          { path: "striker", select: "name" },
+          { path: "nonStriker", select: "name" },
+          { path: "currentBowler", select: "name" }
+        ]
+      });
 
     if (!match) {
       return res.status(404).json({ message: "Match not found" });

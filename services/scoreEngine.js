@@ -117,12 +117,19 @@ exports.processBall = async (ball) => {
   await innings.save();
 
   /* ---------- LIVE SCORE ---------- */
+  // Populate player data for live score update
+  const populatedInnings = await Innings.findById(innings._id)
+    .populate("striker", "name")
+    .populate("nonStriker", "name")
+    .populate("currentBowler", "name");
+
   io.to(`match_${match._id}`).emit("liveScoreUpdate", {
-    runs: innings.totalRuns,
-    wickets: innings.totalWickets,
-    overs: innings.totalOvers,
-    striker: innings.striker,
-    nonStriker: innings.nonStriker
+    runs: populatedInnings.totalRuns,
+    wickets: populatedInnings.totalWickets,
+    overs: populatedInnings.totalOvers,
+    striker: populatedInnings.striker,
+    nonStriker: populatedInnings.nonStriker,
+    currentBowler: populatedInnings.currentBowler
   });
 
   /* ---------- COMMENTARY ---------- */
