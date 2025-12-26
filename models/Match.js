@@ -79,7 +79,7 @@ const matchSchema = new mongoose.Schema(
     ],
 
     scorerId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    currentInnings: { type: Number, default: 1 },
+    currentInnings: { type: mongoose.Schema.Types.ObjectId, ref: "Innings" },
     striker: { type: mongoose.Schema.Types.ObjectId, ref: "Player" },
     nonStriker: { type: mongoose.Schema.Types.ObjectId, ref: "Player" },
     currentBowler: { type: mongoose.Schema.Types.ObjectId, ref: "Player" },

@@ -49,7 +49,7 @@ exports.createInnings = async (req, res) => {
     });
 
     match.innings.push(newInnings._id);
-    match.currentInnings = inningsNumber;
+    match.currentInnings = newInnings._id;
     await match.save();
 
     return res.status(201).json({

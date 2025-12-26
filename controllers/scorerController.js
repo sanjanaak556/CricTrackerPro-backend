@@ -105,32 +105,56 @@ exports.getScorerMatches = async (req, res) => {
 
 /* ================= START INNINGS ================= */
 exports.startInnings = async (req, res) => {
-  const { matchId, striker, nonStriker, bowler } = req.body;
+  const { matchId, battingTeam, bowlingTeam, striker, nonStriker, bowler } = req.body;
 
-  const innings = await Innings.findOne({
+  const match = await Match.findById(matchId);
+  if (!match) {
+    return res.status(404).json({ message: "Match not found" });
+  }
+
+  // Determine the innings number
+  let inningsNumber = 1;
+  if (match.currentInnings) {
+    const currentInnings = await Innings.findById(match.currentInnings);
+    if (currentInnings && currentInnings.completed) {
+      inningsNumber = 2; // Start second innings if first is completed
+    } else {
+      inningsNumber = currentInnings.inningsNumber;
+    }
+  }
+
+  let innings = await Innings.findOne({
     matchId,
-    inningsNumber: 1,
+    inningsNumber,
     isActive: true
   });
 
   if (!innings) {
-    return res.status(404).json({ message: "Innings not found" });
+    // Create innings if not exists
+    innings = await Innings.create({
+      matchId,
+      battingTeam,
+      bowlingTeam,
+      inningsNumber,
+      isActive: true,
+    });
+    match.innings.push(innings._id);
+    match.currentInnings = innings._id;
+    await match.save();
   }
-
-  const over = await Over.create({
-    matchId,
-    inningsId: innings._id,
-    overNumber: 0,
-    bowler,
-    balls: []
-  });
 
   innings.striker = striker;
   innings.nonStriker = nonStriker;
-  innings.currentBowler = bowler;
-  innings.currentOverId = over._id;
-
+  innings.currentOverId = null; // Reset over state for new innings start
+  innings.currentBowler = null;
   await innings.save();
+
+  // Update match with current innings
+  match.currentInnings = innings._id;
+  match.striker = striker;
+  match.nonStriker = nonStriker;
+  await match.save();
+
   res.json({ success: true });
 };
 

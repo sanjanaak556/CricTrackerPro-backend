@@ -22,7 +22,7 @@ const ballSchema = new mongoose.Schema(
 
     ballNumber: {
       type: Number,
-      required: true // 1–6 for legal deliveries
+      default: 0 // 1–6 for legal deliveries, set later
     },
 
     striker: {
