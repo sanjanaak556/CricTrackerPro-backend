@@ -204,6 +204,36 @@ exports.undoLastBall = async (req, res) => {
   res.json({ success: true });
 };
 
+/* ================= SET NEW BATTER ================= */
+exports.newBatter = async (req, res) => {
+  const { matchId, playerId, wicketType } = req.body;
+
+  try {
+    const match = await Match.findById(matchId);
+    if (!match) {
+      return res.status(404).json({ message: "Match not found" });
+    }
+
+    const innings = await Innings.findById(match.currentInnings);
+    if (!innings) {
+      return res.status(404).json({ message: "Current innings not found" });
+    }
+
+    // Update the striker with the new batter
+    innings.striker = playerId;
+    await innings.save();
+
+    // Update match striker as well
+    match.striker = playerId;
+    await match.save();
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("New batter error:", err);
+    res.status(500).json({ message: "Failed to set new batter" });
+  }
+};
+
 
 
 

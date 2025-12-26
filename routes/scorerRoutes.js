@@ -10,6 +10,7 @@ const {
   startInnings,
   startOver,
   submitBall,
+  newBatter,
   undoLastBall
 } = require("../controllers/scorerController");
 
@@ -22,6 +23,7 @@ router.get("/matches", auth, scorer, getScorerMatches);
 router.post("/start-innings", auth, scorer, startInnings);
 router.post("/start-over/:matchId", auth, scorer, startOver);
 router.post("/ball", auth, scorer, submitBall);
+router.post("/new-batter", auth, scorer, newBatter);
 router.post("/undo/:matchId", auth, scorer, undoLastBall);
 
 
