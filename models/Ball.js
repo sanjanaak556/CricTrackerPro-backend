@@ -62,6 +62,22 @@ const ballSchema = new mongoose.Schema(
     isWicket: {
       type: Boolean,
       default: false
+    },
+    wicketType: {
+      type: String,
+      enum: ["bowled", "caught", "lbw", "runout", "stumped", "hitwicket", "retired"],
+      default: null
+    },
+
+    dismissedBatsman: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Player",
+      default: null
+    },
+
+    customCommentary: {
+      type: String,
+      default: ""
     }
   },
   { timestamps: true }

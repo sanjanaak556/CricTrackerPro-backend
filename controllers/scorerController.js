@@ -1,6 +1,7 @@
 const Match = require("../models/Match");
-const Innings = require("../models/Innings");
+const Ball = require("../models/Ball");
 const Over = require("../models/Over");
+const Innings = require("../models/Innings");
 const { processBall } = require("../services/scoreEngine");
 
 /* =========================================================
@@ -102,132 +103,83 @@ exports.getScorerMatches = async (req, res) => {
   }
 };
 
-/* =========================================================
-   GET LIVE MATCH DATA
-========================================================= */
-exports.getLiveMatchData = async (req, res) => {
-  try {
-    const { matchId } = req.params;
+/* ================= START INNINGS ================= */
+exports.startInnings = async (req, res) => {
+  const { matchId, striker, nonStriker, bowler } = req.body;
 
-    const match = await Match.findById(matchId)
-      .populate("teamA teamB scorerId");
+  const innings = await Innings.findOne({
+    matchId,
+    inningsNumber: 1,
+    isActive: true
+  });
 
-    if (!match) {
-      return res.status(404).json({ message: "Match not found" });
-    }
-
-    const innings = await Innings.findOne({
-      matchId,
-      isActive: true,
-    })
-      .populate("striker nonStriker currentBowler");
-
-    res.json({
-      match,
-      innings,
-      needsStart: !innings,
-    });
-  } catch (err) {
-    console.error("Live match load error:", err);
-    res.status(500).json({ message: "Failed to load live match" });
+  if (!innings) {
+    return res.status(404).json({ message: "Innings not found" });
   }
+
+  const over = await Over.create({
+    matchId,
+    inningsId: innings._id,
+    overNumber: 0,
+    bowler,
+    balls: []
+  });
+
+  innings.striker = striker;
+  innings.nonStriker = nonStriker;
+  innings.currentBowler = bowler;
+  innings.currentOverId = over._id;
+
+  await innings.save();
+  res.json({ success: true });
 };
 
-/* =========================================================
-   START SCORING
-========================================================= */
-exports.startScoring = async (req, res) => {
-  try {
-    const { matchId } = req.params;
+/* ================= START OVER ================= */
+exports.startOver = async (req, res) => {
+  const { inningsId, bowler, overNumber } = req.body;
 
-    const match = await Match.findById(matchId);
-    if (!match) {
-      return res.status(404).json({ message: "Match not found" });
-    }
+  const over = await Over.create({
+    inningsId,
+    matchId: req.params.matchId,
+    overNumber,
+    bowler,
+    balls: []
+  });
 
-    let innings = await Innings.findOne({
-      matchId,
-      inningsNumber: 1,
-      isActive: true,
-    });
+  await Innings.findByIdAndUpdate(inningsId, {
+    currentBowler: bowler,
+    currentOverId: over._id
+  });
 
-    if (!innings) {
-      innings = await Innings.create({
-        matchId,
-        battingTeam: match.teamA,
-        bowlingTeam: match.teamB,
-        inningsNumber: 1,
-        isActive: true,
-      });
-    }
-
-    match.status = "live";
-    await match.save();
-
-    res.json({
-      message: "Scoring started",
-      innings,
-    });
-  } catch (err) {
-    console.error("Start scoring error:", err);
-    res.status(500).json({ message: "Failed to start scoring" });
-  }
+  res.json(over);
 };
 
-/* =========================================================
-   SUBMIT BALL
-========================================================= */
+/* ================= SUBMIT BALL ================= */
 exports.submitBall = async (req, res) => {
   try {
-    const { matchId } = req.params;
-    const payload = req.body;
-
-    const match = await Match.findById(matchId);
-    if (!match) {
-      return res.status(404).json({ message: "Match not found" });
-    }
-
-    const innings = await Innings.findOne({
-      matchId,
-      isActive: true,
-    });
-
-    if (!innings) {
-      return res.status(400).json({
-        message: "Scoring not started yet",
-      });
-    }
-
-    await processBall({
-      match,
-      innings,
-      ...payload,
-    });
-
+    const ball = await Ball.create(req.body);
+    await processBall(ball);
     res.json({ success: true });
   } catch (err) {
-    console.error("Submit ball error:", err);
+    console.error("Ball submit error:", err);
     res.status(500).json({ message: "Failed to submit ball" });
   }
 };
 
-/* =========================================================
-   UNDO LAST BALL (PLACEHOLDER)
-========================================================= */
+/* ================= UNDO BALL (BASIC) ================= */
 exports.undoLastBall = async (req, res) => {
-  res.json({ message: "Undo logic will be added in next phase" });
+  const lastBall = await Ball.findOne({
+    matchId: req.params.matchId
+  }).sort({ createdAt: -1 });
+
+  if (!lastBall) {
+    return res.status(400).json({ message: "No ball to undo" });
+  }
+
+  await lastBall.deleteOne();
+  res.json({ success: true });
 };
 
-/* =========================================================
-   SELECT NEW BATTER (PLACEHOLDER)
-========================================================= */
-exports.selectNewBatter = async (req, res) => {
-  res.json({ message: "New batter selected" });
-};
 
-/* =========================================================
-   SELECT NEW BOWLER (PLACEHOLDER)
-========================================================= */
-exports.selectNewBowler = async (req, res) => {
-  res.json({ message: "New bowler selected" });
-};
+
+

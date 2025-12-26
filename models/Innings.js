@@ -30,7 +30,7 @@ const inningsSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Over",
       default: null
-    },    
+    },
 
     totalRuns: { type: Number, default: 0 },
     totalWickets: { type: Number, default: 0 },
@@ -53,6 +53,17 @@ const inningsSchema = new mongoose.Schema(
     completed: { type: Boolean, default: false },
 
     isActive: { type: Boolean, default: true },
+
+    bowlerOvers: {
+      type: Object,
+      default: {}
+    },
+
+    lastOverBowler: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Player",
+      default: null
+    },
   },
   { timestamps: true }
 );

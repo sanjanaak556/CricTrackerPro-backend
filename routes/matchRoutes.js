@@ -40,7 +40,7 @@ router.get("/live", auth, getLoggedInLiveMatches);
 router.get("/:matchId/players", auth, getMatchPlayers);
 
 // Update match (admin only)
-router.put("/:matchId", auth, admin, updateMatch);
+router.put("/:matchId", auth, scorer, updateMatch);
 
 // Soft delete match (admin only)
 router.delete("/:matchId", auth, admin, deleteMatch);

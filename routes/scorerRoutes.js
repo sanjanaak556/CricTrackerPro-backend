@@ -7,12 +7,10 @@ const scorer = require("../middleware/scorerMiddleware");
 const {
   getScorerDashboard,
   getScorerMatches,
-  getLiveMatchData,
-  startScoring,
+  startInnings,
+  startOver,
   submitBall,
-  undoLastBall,
-  selectNewBatter,
-  selectNewBowler
+  undoLastBall
 } = require("../controllers/scorerController");
 
 // Dashboard
@@ -21,12 +19,10 @@ router.get("/dashboard", auth, scorer, getScorerDashboard);
 // Assigned matches
 router.get("/matches", auth, scorer, getScorerMatches);
 
-// LIVE SCORING
-router.get("/match/:matchId/live", auth, scorer, getLiveMatchData);
-router.post("/match/:matchId/start", auth, scorer, startScoring);
-router.post("/match/:matchId/ball", auth, scorer, submitBall);
-router.post("/match/:matchId/undo", auth, scorer, undoLastBall);
-router.post("/match/:matchId/new-batter", auth, scorer, selectNewBatter);
-router.post("/match/:matchId/new-bowler", auth, scorer, selectNewBowler);
+router.post("/start-innings", auth, scorer, startInnings);
+router.post("/start-over/:matchId", auth, scorer, startOver);
+router.post("/ball", auth, scorer, submitBall);
+router.post("/undo/:matchId", auth, scorer, undoLastBall);
+
 
 module.exports = router;
