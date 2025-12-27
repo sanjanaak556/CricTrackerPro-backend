@@ -13,6 +13,7 @@ const {
     deleteMatch,
     startMatch,
     completeMatch,
+    abandonMatch,
     assignScorer,
     updateLiveScore,
     getPublicLiveMatches,
@@ -50,6 +51,9 @@ router.put("/:matchId/start", auth, scorer, startMatch);
 
 // Complete match (admin or scorer)
 router.put("/:matchId/complete", auth, scorer, completeMatch);
+
+// Abandon match (admin or scorer)
+router.put("/:matchId/abandon", auth, scorer, abandonMatch);
 
 // Assign scorer (admin only)
 router.put("/:matchId/assign-scorer", auth, admin, assignScorer);

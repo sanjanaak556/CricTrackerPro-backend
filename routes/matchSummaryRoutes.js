@@ -22,7 +22,7 @@ router.post("/", auth, admin, createMatchSummary);
 router.get("/", auth, admin, listAllSummaries);
 
 //  Auto generate summary
-router.post("/auto-generate/:matchId", auth, admin, autoGenerateSummary);
+router.post("/auto-generate/:matchId", auth, scorer, autoGenerateSummary);
 
 // Get summary by ID
 router.get("/summary/:id", auth, getSummaryById);

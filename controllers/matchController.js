@@ -193,11 +193,45 @@ exports.startMatch = async (req, res) => {
 // 7) Complete Match
 exports.completeMatch = async (req, res) => {
   try {
-    const match = await Match.findById(req.params.matchId);
+    const match = await Match.findById(req.params.matchId).populate('innings');
     if (!match) return res.status(404).json({ message: "Match not found" });
+
+    // Calculate winner based on innings
+    const innings = match.innings;
+    if (innings.length === 2) {
+      const firstInnings = innings.find(i => i.inningsNumber === 1);
+      const secondInnings = innings.find(i => i.inningsNumber === 2);
+
+      if (firstInnings && secondInnings) {
+        const teamARuns = firstInnings.battingTeam.toString() === match.teamA.toString() ? firstInnings.totalRuns : secondInnings.totalRuns;
+        const teamBRuns = firstInnings.battingTeam.toString() === match.teamB.toString() ? firstInnings.totalRuns : secondInnings.totalRuns;
+
+        if (teamARuns > teamBRuns) {
+          match.winnerTeam = match.teamA;
+          match.winType = "runs";
+          match.winMargin = teamARuns - teamBRuns;
+        } else if (teamBRuns > teamARuns) {
+          match.winnerTeam = match.teamB;
+          match.winType = "runs";
+          match.winMargin = teamBRuns - teamARuns;
+        } else {
+          // Tie - for simplicity, no winner
+          match.winnerTeam = null;
+          match.winType = null;
+          match.winMargin = null;
+        }
+      }
+    } else if (innings.length === 1) {
+      // If only one innings, the batting team wins if they reached target, but typically not applicable
+      // For now, assume no winner
+    }
 
     match.status = "completed";
     await match.save();
+
+    // Populate winnerTeam for response
+    const updatedMatch = await Match.findById(req.params.matchId)
+      .populate("winnerTeam", "name shortName logo");
 
     // Auto-generate summary for completed match
     try {
@@ -207,13 +241,32 @@ exports.completeMatch = async (req, res) => {
       // Don't fail the match completion if summary generation fails
     }
 
-    res.json({ message: "Match completed", match });
+    res.json({ message: "Match completed", match: updatedMatch });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// 8) Assign Scorer
+// 8) Abandon Match
+exports.abandonMatch = async (req, res) => {
+  try {
+    const { statusReason } = req.body;
+
+    const match = await Match.findById(req.params.matchId);
+    if (!match) return res.status(404).json({ message: "Match not found" });
+
+    match.status = "abandoned";
+    match.statusReason = statusReason;
+    match.abandonedAt = new Date();
+
+    await match.save();
+    res.json({ message: "Match abandoned", match });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 9) Assign Scorer
 exports.assignScorer = async (req, res) => {
   try {
     const { scorerId } = req.body;
@@ -246,7 +299,7 @@ exports.assignScorer = async (req, res) => {
   }
 };
 
-// 9) Update Live Score
+// 10) Update Live Score
 exports.updateLiveScore = async (req, res) => {
   try {
     const match = await Match.findById(req.params.matchId);
@@ -269,7 +322,7 @@ exports.updateLiveScore = async (req, res) => {
   }
 };
 
-// 10) Public Live Matches
+// 11) Public Live Matches
 exports.getPublicLiveMatches = async (req, res) => {
   try {
     const liveMatches = await Match.find({
@@ -286,7 +339,7 @@ exports.getPublicLiveMatches = async (req, res) => {
   }
 };
 
-// 11) Get live matches for logged-in users
+// 12) Get live matches for logged-in users
 exports.getLoggedInLiveMatches = async (req, res) => {
   try {
     const liveMatches = await Match.find({
@@ -311,7 +364,7 @@ exports.getLoggedInLiveMatches = async (req, res) => {
   }
 };
 
-// 12) Get Match Players
+// 13) Get Match Players
 exports.getMatchPlayers = async (req, res) => {
   try {
     const match = await Match.findById(req.params.matchId)
@@ -347,7 +400,7 @@ exports.getMatchPlayers = async (req, res) => {
   }
 };
 
-// 13) Active Match For Scorer
+// 14) Active Match For Scorer
 exports.getActiveMatchForScorer = async (req, res) => {
   try {
     const scorerId = req.user.id;
