@@ -187,6 +187,15 @@ exports.submitBall = async (req, res) => {
       ballData.fielder = ballData.fielder || null;
       ballData.dismissedBatsman = ballData.dismissedBatsman || ballData.striker; // Default to striker if not specified
     }
+
+    // If bowler is not provided or null, fetch it from the over
+    if (!ballData.bowler) {
+      const over = await Over.findById(ballData.overId);
+      if (over) {
+        ballData.bowler = over.bowler;
+      }
+    }
+
     const ball = await Ball.create(ballData);
     await processBall(ball);
     res.json({ success: true });
