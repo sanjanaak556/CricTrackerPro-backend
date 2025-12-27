@@ -157,3 +157,89 @@ exports.processBall = async (ball) => {
     text: buildCommentary(ball, o, b)
   });
 };
+
+/* =====================================================
+   REVERSE BALL PROCESSING (FOR UNDO)
+===================================================== */
+exports.reverseProcessBall = async (ball) => {
+  const io = getIO();
+
+  const innings = await Innings.findById(ball.inningsId);
+  const match = await Match.findById(ball.matchId);
+  const over = await Over.findById(ball.overId);
+
+  if (!innings || !match || !over) return;
+
+  /* ---------- LEGAL / ILLEGAL ---------- */
+  ball.isLegalDelivery = isLegalDelivery(ball.extraType);
+
+  /* ---------- RUNS ---------- */
+  const runsScored = ball.runs + extraRuns(ball.extraType, ball.runs);
+  innings.totalRuns -= runsScored;
+
+  /* ---------- WICKET ---------- */
+  if (ball.isWicket) {
+    innings.totalWickets -= 1;
+    // Remove the last fall of wicket entry
+    innings.fallOfWickets.pop();
+  }
+
+  /* ---------- OVERS ---------- */
+  let [o, b] = innings.totalOvers.split(".").map(Number);
+
+  if (ball.isLegalDelivery) {
+    b--;
+    if (b < 0) {
+      o--;
+      b = 5; // Reset to 5 balls (since 6 balls per over, after decrementing from 0)
+    }
+  }
+
+  innings.totalOvers = `${o}.${b}`;
+
+  /* ---------- STRIKE ROTATION ---------- */
+  // Reverse strike rotation if it happened
+  if (ball.isLegalDelivery && !ball.isWicket && ball.runs % 2 === 1) {
+    rotateStrike(innings);
+  }
+
+  /* ---------- OVER COMPLETE ---------- */
+  // If this was the ball that completed the over, reverse it
+  if (ball.isLegalDelivery && b === 5) { // If after reversal b=5, it means over was completed
+    // Set back to previous over state
+    innings.currentBowler = innings.currentBowler; // Keep current bowler
+    innings.currentOverId = over._id; // Keep current over
+  }
+
+  /* ---------- REMOVE BALL FROM OVER ---------- */
+  over.balls = over.balls.filter(ballId => !ballId.equals(ball._id));
+  await over.save();
+
+  /* ---------- INNINGS COMPLETE ---------- */
+  // If innings was completed due to this ball, reverse it
+  if (innings.totalWickets < 10 && o < match.overs) {
+    innings.completed = false;
+  }
+
+  await innings.save();
+
+  /* ---------- LIVE SCORE ---------- */
+  // Populate player data for live score update
+  const populatedInnings = await Innings.findById(innings._id)
+    .populate("striker", "name")
+    .populate("nonStriker", "name")
+    .populate("currentBowler", "name")
+    .populate("fallOfWickets.playerId", "name")
+    .populate("fallOfWickets.bowlerId", "name")
+    .populate("fallOfWickets.fielderId", "name");
+
+  io.to(`match_${match._id}`).emit("liveScoreUpdate", {
+    runs: populatedInnings.totalRuns,
+    wickets: populatedInnings.totalWickets,
+    overs: populatedInnings.totalOvers,
+    striker: populatedInnings.striker,
+    nonStriker: populatedInnings.nonStriker,
+    currentBowler: populatedInnings.currentBowler,
+    fallOfWickets: populatedInnings.fallOfWickets
+  });
+};

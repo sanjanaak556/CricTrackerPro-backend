@@ -196,8 +196,10 @@ exports.submitBall = async (req, res) => {
   }
 };
 
-/* ================= UNDO BALL (BASIC) ================= */
+/* ================= UNDO BALL ================= */
 exports.undoLastBall = async (req, res) => {
+  const { reverseProcessBall } = require("../services/scoreEngine");
+
   const lastBall = await Ball.findOne({
     matchId: req.params.matchId
   }).sort({ createdAt: -1 });
@@ -206,7 +208,12 @@ exports.undoLastBall = async (req, res) => {
     return res.status(400).json({ message: "No ball to undo" });
   }
 
+  // Reverse the score changes before deleting the ball
+  await reverseProcessBall(lastBall);
+
+  // Delete the ball from database
   await lastBall.deleteOne();
+
   res.json({ success: true });
 };
 
