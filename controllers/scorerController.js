@@ -181,7 +181,13 @@ exports.startOver = async (req, res) => {
 /* ================= SUBMIT BALL ================= */
 exports.submitBall = async (req, res) => {
   try {
-    const ball = await Ball.create(req.body);
+    const ballData = req.body;
+    // Ensure fielder and dismissedBatsman are included if wicket
+    if (ballData.isWicket) {
+      ballData.fielder = ballData.fielder || null;
+      ballData.dismissedBatsman = ballData.dismissedBatsman || ballData.striker; // Default to striker if not specified
+    }
+    const ball = await Ball.create(ballData);
     await processBall(ball);
     res.json({ success: true });
   } catch (err) {

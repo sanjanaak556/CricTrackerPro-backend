@@ -53,6 +53,22 @@ exports.processBall = async (ball) => {
   /* ---------- WICKET ---------- */
   if (ball.isWicket) {
     innings.totalWickets += 1;
+
+    // Track fall of wickets
+    const wicketEntry = {
+      wicketNumber: innings.totalWickets,
+      playerId: ball.dismissedBatsman || ball.striker,
+      scoreAtFall: innings.totalRuns,
+      overAtFall: innings.totalOvers,
+      bowlerId: ball.bowler
+    };
+
+    // Add fielderId if wicket type requires it (caught, runout, stumped)
+    if (["caught", "runout", "stumped"].includes(ball.wicketType)) {
+      wicketEntry.fielderId = ball.fielder;
+    }
+
+    innings.fallOfWickets.push(wicketEntry);
   }
 
   /* ---------- BALL NUMBER ---------- */
@@ -121,7 +137,10 @@ exports.processBall = async (ball) => {
   const populatedInnings = await Innings.findById(innings._id)
     .populate("striker", "name")
     .populate("nonStriker", "name")
-    .populate("currentBowler", "name");
+    .populate("currentBowler", "name")
+    .populate("fallOfWickets.playerId", "name")
+    .populate("fallOfWickets.bowlerId", "name")
+    .populate("fallOfWickets.fielderId", "name");
 
   io.to(`match_${match._id}`).emit("liveScoreUpdate", {
     runs: populatedInnings.totalRuns,
@@ -129,7 +148,8 @@ exports.processBall = async (ball) => {
     overs: populatedInnings.totalOvers,
     striker: populatedInnings.striker,
     nonStriker: populatedInnings.nonStriker,
-    currentBowler: populatedInnings.currentBowler
+    currentBowler: populatedInnings.currentBowler,
+    fallOfWickets: populatedInnings.fallOfWickets
   });
 
   /* ---------- COMMENTARY ---------- */

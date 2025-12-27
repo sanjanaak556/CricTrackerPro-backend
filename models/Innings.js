@@ -64,6 +64,27 @@ const inningsSchema = new mongoose.Schema(
       ref: "Player",
       default: null
     },
+
+    fallOfWickets: [
+      {
+        wicketNumber: { type: Number, required: true },
+        playerId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Player",
+          required: true
+        },
+        scoreAtFall: { type: Number, required: true },
+        overAtFall: { type: String, required: true },
+        bowlerId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Player"
+        },
+        fielderId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Player"
+        }
+      }
+    ],
   },
   { timestamps: true }
 );

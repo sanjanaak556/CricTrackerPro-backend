@@ -75,6 +75,12 @@ const ballSchema = new mongoose.Schema(
       default: null
     },
 
+    fielder: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Player",
+      default: null
+    },
+
     customCommentary: {
       type: String,
       default: ""
