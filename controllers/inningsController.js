@@ -135,12 +135,15 @@ exports.startInnings = async (req, res) => {
   }
 };
 
-// STEP 3: GET INNINGS 
+// STEP 3: GET INNINGS
 exports.getInningsByMatchId = async (req, res) => {
   try {
     const { matchId } = req.params;
 
-    const innings = await Innings.find({ matchId }).sort({ inningsNumber: 1 });
+    const innings = await Innings.find({ matchId })
+      .sort({ inningsNumber: 1 })
+      .populate("battingTeam", "name shortName logo")
+      .populate("bowlingTeam", "name shortName logo");
 
     // ALWAYS return array (even empty)
     return res.status(200).json(innings);
