@@ -152,10 +152,31 @@ exports.processBall = async (ball) => {
     fallOfWickets: populatedInnings.fallOfWickets
   });
 
-  /* ---------- COMMENTARY ---------- */
-  io.to(`match_${match._id}`).emit("newCommentary", {
-    text: buildCommentary(ball, o, b)
+  /* ---------- BALL REMOVED EVENT ---------- */
+  // Emit ball removed event for viewers to update active over and balls
+  io.to(`match_${match._id}`).emit("ballRemoved", {
+    overId: over._id
   });
+
+  /* ---------- BALL ADDED EVENT ---------- */
+  // Emit ball added event for viewers to update active over and balls
+  const populatedBall = await Ball.findById(ball._id).populate("bowler", "name");
+  const ballAddedData = {
+    ball: populatedBall,
+    overId: over._id,
+    overNumber: over.overNumber,
+    bowler: populatedBall.bowler
+  };
+  io.to(`match_${match._id}`).emit("ballAdded", ballAddedData);
+  console.log(`🎾 Ball added event emitted to match_${match._id}:`, ballAddedData);
+
+  /* ---------- COMMENTARY ---------- */
+  const commentaryData = {
+    text: buildCommentary(ball, o, b),
+    type: ball.isWicket ? "WICKET" : ball.runs === 6 ? "SIX" : ball.runs === 4 ? "FOUR" : ball.extraType !== "none" ? "EXTRA" : ball.runs > 0 ? "NORMAL" : "INFO"
+  };
+  io.to(`match_${match._id}`).emit("newCommentary", commentaryData);
+  console.log(`💬 Commentary emitted to match_${match._id}:`, commentaryData);
 };
 
 /* =====================================================

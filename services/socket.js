@@ -25,6 +25,9 @@ module.exports = {
         const room = `match_${matchId}`;
         socket.join(room);
         console.log(`📌 ${socket.id} joined ${room}`);
+        // Log current room members for debugging
+        const roomSize = io.sockets.adapter.rooms.get(room)?.size || 0;
+        console.log(`👥 Room ${room} now has ${roomSize} members`);
       });
 
       // ------------------------------------------------------
@@ -34,6 +37,8 @@ module.exports = {
         const room = `match_${matchId}`;
         socket.leave(room);
         console.log(`🚪 ${socket.id} left ${room}`);
+        const roomSize = io.sockets.adapter.rooms.get(room)?.size || 0;
+        console.log(`👥 Room ${room} now has ${roomSize} members`);
       });
 
       // ------------------------------------------------------
@@ -42,7 +47,7 @@ module.exports = {
       socket.on("scoreUpdate", ({ matchId, data }) => {
         const room = `match_${matchId}`;
         io.to(room).emit("scoreUpdated", data);
-        console.log(`🏏 Score update sent to ${room}`);
+        console.log(`🏏 Score update sent to ${room}:`, data);
       });
 
       // ------------------------------------------------------
@@ -51,7 +56,7 @@ module.exports = {
       socket.on("commentaryUpdate", ({ matchId, message }) => {
         const room = `match_${matchId}`;
         io.to(room).emit("newCommentary", message);
-        console.log(`✍ Commentary sent to ${room}`);
+        console.log(`✍ Commentary sent to ${room}:`, message);
       });
 
       // ------------------------------------------------------
@@ -60,7 +65,7 @@ module.exports = {
       socket.on("eventUpdate", ({ matchId, event }) => {
         const room = `match_${matchId}`;
         io.to(room).emit("eventReceived", event);
-        console.log(`⚡ Event sent to ${room}`);
+        console.log(`⚡ Event sent to ${room}:`, event);
       });
 
       // ------------------------------------------------------
