@@ -194,6 +194,8 @@ exports.processBall = async (ball) => {
   /* ---------- LIVE SCORE ---------- */
   // Populate player data for live score update
   const populatedInnings = await Innings.findById(innings._id)
+    .populate("battingTeam", "name")
+    .populate("bowlingTeam", "name")
     .populate("striker", "name")
     .populate("nonStriker", "name")
     .populate("currentBowler", "name")
@@ -205,6 +207,8 @@ exports.processBall = async (ball) => {
     runs: populatedInnings.totalRuns,
     wickets: populatedInnings.totalWickets,
     overs: populatedInnings.totalOvers,
+    battingTeam: populatedInnings.battingTeam,
+    bowlingTeam: populatedInnings.bowlingTeam,
     striker: populatedInnings.striker,
     nonStriker: populatedInnings.nonStriker,
     currentBowler: populatedInnings.currentBowler,
@@ -315,6 +319,8 @@ exports.reverseProcessBall = async (ball) => {
   /* ---------- LIVE SCORE ---------- */
   // Populate player data for live score update
   const populatedInnings = await Innings.findById(innings._id)
+    .populate("battingTeam", "name")
+    .populate("bowlingTeam", "name")
     .populate("striker", "name")
     .populate("nonStriker", "name")
     .populate("currentBowler", "name")
@@ -326,6 +332,8 @@ exports.reverseProcessBall = async (ball) => {
     runs: populatedInnings.totalRuns,
     wickets: populatedInnings.totalWickets,
     overs: populatedInnings.totalOvers,
+    battingTeam: populatedInnings.battingTeam,
+    bowlingTeam: populatedInnings.bowlingTeam,
     striker: populatedInnings.striker,
     nonStriker: populatedInnings.nonStriker,
     currentBowler: populatedInnings.currentBowler,
