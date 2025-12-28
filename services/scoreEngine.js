@@ -20,6 +20,63 @@ const rotateStrike = (innings) => {
   innings.nonStriker = temp;
 };
 
+/* ===================== CALCULATE PLAYER STATS ===================== */
+const calculatePlayerStats = async (innings) => {
+  const Ball = require("../models/Ball");
+
+  // Get all balls for this innings
+  const balls = await Ball.find({ inningsId: innings._id }).populate('bowler');
+
+  // Initialize stats
+  let strikerRuns = 0, strikerBalls = 0;
+  let nonStrikerRuns = 0, nonStrikerBalls = 0;
+  let bowlerOvers = "0.0", bowlerRuns = 0, bowlerWickets = 0;
+
+  // Calculate striker and non-striker stats
+  balls.forEach(ball => {
+    if (ball.striker && ball.striker.toString() === innings.striker?.toString()) {
+      if (ball.isLegalDelivery) {
+        strikerBalls++;
+      }
+      strikerRuns += ball.runs;
+    } else if (ball.striker && ball.striker.toString() === innings.nonStriker?.toString()) {
+      if (ball.isLegalDelivery) {
+        nonStrikerBalls++;
+      }
+      nonStrikerRuns += ball.runs;
+    }
+  });
+
+  // Calculate current bowler stats
+  if (innings.currentBowler) {
+    const bowlerBalls = balls.filter(ball =>
+      ball.bowler && ball.bowler._id.toString() === innings.currentBowler.toString()
+    );
+
+    let legalDeliveries = 0;
+    bowlerBalls.forEach(ball => {
+      bowlerRuns += ball.runs + extraRuns(ball.extraType, ball.runs);
+      if (ball.isWicket) bowlerWickets++;
+      if (ball.isLegalDelivery) legalDeliveries++;
+    });
+
+    const overs = Math.floor(legalDeliveries / 6);
+    const ballsInOver = legalDeliveries % 6;
+    bowlerOvers = `${overs}.${ballsInOver}`;
+  }
+
+  // Update innings with calculated stats
+  innings.strikerRuns = strikerRuns;
+  innings.strikerBalls = strikerBalls;
+  innings.nonStrikerRuns = nonStrikerRuns;
+  innings.nonStrikerBalls = nonStrikerBalls;
+  innings.bowlerOvers = bowlerOvers;
+  innings.bowlerRuns = bowlerRuns;
+  innings.bowlerWickets = bowlerWickets;
+
+  return innings;
+};
+
 /* ===================== COMMENTARY ===================== */
 const buildCommentary = (ball, overNo, ballNo) => {
   if (ball.isWicket) return `WICKET! (${overNo}.${ballNo})`;
@@ -130,6 +187,8 @@ exports.processBall = async (ball) => {
     });
   }
 
+  // Calculate player stats before saving
+  await calculatePlayerStats(innings);
   await innings.save();
 
   /* ---------- LIVE SCORE ---------- */
@@ -149,7 +208,14 @@ exports.processBall = async (ball) => {
     striker: populatedInnings.striker,
     nonStriker: populatedInnings.nonStriker,
     currentBowler: populatedInnings.currentBowler,
-    fallOfWickets: populatedInnings.fallOfWickets
+    fallOfWickets: populatedInnings.fallOfWickets,
+    strikerRuns: populatedInnings.strikerRuns,
+    strikerBalls: populatedInnings.strikerBalls,
+    nonStrikerRuns: populatedInnings.nonStrikerRuns,
+    nonStrikerBalls: populatedInnings.nonStrikerBalls,
+    bowlerOvers: populatedInnings.bowlerOvers,
+    bowlerRuns: populatedInnings.bowlerRuns,
+    bowlerWickets: populatedInnings.bowlerWickets
   });
 
   /* ---------- BALL REMOVED EVENT ---------- */
@@ -242,6 +308,8 @@ exports.reverseProcessBall = async (ball) => {
     innings.completed = false;
   }
 
+  // Calculate player stats before saving
+  await calculatePlayerStats(innings);
   await innings.save();
 
   /* ---------- LIVE SCORE ---------- */
@@ -261,6 +329,13 @@ exports.reverseProcessBall = async (ball) => {
     striker: populatedInnings.striker,
     nonStriker: populatedInnings.nonStriker,
     currentBowler: populatedInnings.currentBowler,
-    fallOfWickets: populatedInnings.fallOfWickets
+    fallOfWickets: populatedInnings.fallOfWickets,
+    strikerRuns: populatedInnings.strikerRuns,
+    strikerBalls: populatedInnings.strikerBalls,
+    nonStrikerRuns: populatedInnings.nonStrikerRuns,
+    nonStrikerBalls: populatedInnings.nonStrikerBalls,
+    bowlerOvers: populatedInnings.bowlerOvers,
+    bowlerRuns: populatedInnings.bowlerRuns,
+    bowlerWickets: populatedInnings.bowlerWickets
   });
 };

@@ -40,6 +40,15 @@ const inningsSchema = new mongoose.Schema(
     nonStriker: { type: mongoose.Schema.Types.ObjectId, ref: "Player" },
     currentBowler: { type: mongoose.Schema.Types.ObjectId, ref: "Player" },
 
+    // Current player stats for live display
+    strikerRuns: { type: Number, default: 0 },
+    strikerBalls: { type: Number, default: 0 },
+    nonStrikerRuns: { type: Number, default: 0 },
+    nonStrikerBalls: { type: Number, default: 0 },
+    bowlerOvers: { type: String, default: "0.0" },
+    bowlerRuns: { type: Number, default: 0 },
+    bowlerWickets: { type: Number, default: 0 },
+
     balls: [
       {
         type: mongoose.Schema.Types.ObjectId,
