@@ -192,22 +192,45 @@ exports.startInnings = async (req, res) => {
 
 /* ================= START OVER ================= */
 exports.startOver = async (req, res) => {
-  const { inningsId, bowler, overNumber } = req.body;
+  try {
+    const { inningsId, bowler } = req.body;
+    const { matchId } = req.params;
 
-  const over = await Over.create({
-    inningsId,
-    matchId: req.params.matchId,
-    overNumber,
-    bowler,
-    balls: []
-  });
+    if (!inningsId || !bowler || !matchId) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
 
-  await Innings.findByIdAndUpdate(inningsId, {
-    currentBowler: bowler,
-    currentOverId: over._id
-  });
+    const innings = await Innings.findById(inningsId);
+    if (!innings) {
+      return res.status(404).json({ message: "Innings not found" });
+    }
 
-  res.json(over);
+    // ❌ Prevent starting over if one already active
+    if (innings.currentOverId) {
+      return res.status(400).json({ message: "Over already in progress" });
+    }
+
+    // ✅ Calculate over number from totalOvers
+    const [completedOvers] = innings.totalOvers.split(".");
+    const overNumber = Number(completedOvers) + 1;
+
+    const over = await Over.create({
+      inningsId,
+      matchId,
+      overNumber,
+      bowler,
+      balls: []
+    });
+
+    innings.currentBowler = bowler;
+    innings.currentOverId = over._id;
+    await innings.save();
+
+    res.json(over);
+  } catch (err) {
+    console.error("Start over error:", err);
+    res.status(500).json({ message: "Failed to start over" });
+  }
 };
 
 /* ================= SUBMIT BALL ================= */
