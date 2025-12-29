@@ -260,7 +260,7 @@ exports.undoLastBall = async (req, res) => {
 
 /* ================= SET NEW BATTER ================= */
 exports.newBatter = async (req, res) => {
-  const { matchId, playerId, wicketType } = req.body;
+  const { matchId, playerId, wicketType, fielder, whoIsOut } = req.body;
 
   try {
     const match = await Match.findById(matchId);
@@ -273,12 +273,15 @@ exports.newBatter = async (req, res) => {
       return res.status(404).json({ message: "Current innings not found" });
     }
 
-    // Update the striker with the new batter
-    innings.striker = playerId;
+    // Update the appropriate batter based on whoIsOut
+    if (whoIsOut === 'nonStriker') {
+      innings.nonStriker = playerId;
+      match.nonStriker = playerId;
+    } else {
+      innings.striker = playerId;
+      match.striker = playerId;
+    }
     await innings.save();
-
-    // Update match striker as well
-    match.striker = playerId;
     await match.save();
 
     res.json({ success: true });
