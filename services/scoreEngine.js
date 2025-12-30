@@ -183,7 +183,8 @@ exports.processBall = async (ball) => {
 
     io.to(`match_${match._id}`).emit("inningsComplete", {
       runs: innings.totalRuns,
-      wickets: innings.totalWickets
+      wickets: innings.totalWickets,
+      inningsNumber: innings.inningsNumber
     });
   }
 
