@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Match = require("../models/Match");
 const Ball = require("../models/Ball");
 const Over = require("../models/Over");
@@ -137,6 +138,9 @@ exports.startInnings = async (req, res) => {
       bowlingTeam,
       inningsNumber,
       isActive: true,
+      totalOvers: "0.0",
+      totalRuns: 0,
+      totalWickets: 0
     });
     match.innings.push(innings._id);
     match.currentInnings = innings._id;
@@ -200,19 +204,34 @@ exports.startOver = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
+    if (!mongoose.Types.ObjectId.isValid(inningsId)) {
+      return res.status(400).json({ message: "Invalid inningsId" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(bowler)) {
+      return res.status(400).json({ message: "Invalid bowler" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(matchId)) {
+      return res.status(400).json({ message: "Invalid matchId" });
+    }
+
     const innings = await Innings.findById(inningsId);
     if (!innings) {
       return res.status(404).json({ message: "Innings not found" });
     }
 
-    // ❌ Prevent starting over if one already active
+    if (innings.matchId.toString() !== matchId) {
+      return res.status(400).json({ message: "Innings does not belong to this match" });
+    }
+
     if (innings.currentOverId) {
       return res.status(400).json({ message: "Over already in progress" });
     }
 
-    // ✅ Calculate over number from totalOvers
-    const [completedOvers] = innings.totalOvers.split(".");
-    const overNumber = Number(completedOvers) + 1;
+    // Find the maximum overNumber for this innings to avoid duplicates
+    const lastOver = await Over.findOne({ inningsId }).sort({ overNumber: -1 });
+    const overNumber = lastOver ? lastOver.overNumber + 1 : 1;
 
     const over = await Over.create({
       inningsId,
