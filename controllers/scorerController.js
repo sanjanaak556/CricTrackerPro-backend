@@ -167,29 +167,31 @@ exports.startInnings = async (req, res) => {
     .populate("striker", "name")
     .populate("nonStriker", "name");
 
-  io.to(`match_${matchId}`).emit("inningsStarted", {
-    innings: populatedInnings
-  });
+  if (io) {
+    io.to(`match_${matchId}`).emit("inningsStarted", {
+      innings: populatedInnings
+    });
 
-  // Emit live score update for the new innings
-  io.to(`match_${match._id}`).emit("liveScoreUpdate", {
-    runs: populatedInnings.totalRuns,
-    wickets: populatedInnings.totalWickets,
-    overs: populatedInnings.totalOvers,
-    battingTeam: populatedInnings.battingTeam,
-    bowlingTeam: populatedInnings.bowlingTeam,
-    striker: populatedInnings.striker,
-    nonStriker: populatedInnings.nonStriker,
-    currentBowler: populatedInnings.currentBowler,
-    fallOfWickets: populatedInnings.fallOfWickets,
-    strikerRuns: 0,
-    strikerBalls: 0,
-    nonStrikerRuns: 0,
-    nonStrikerBalls: 0,
-    bowlerOvers: "0.0",
-    bowlerRuns: 0,
-    bowlerWickets: 0
-  });
+    // Emit live score update for the new innings
+    io.to(`match_${match._id}`).emit("liveScoreUpdate", {
+      runs: populatedInnings.totalRuns,
+      wickets: populatedInnings.totalWickets,
+      overs: populatedInnings.totalOvers,
+      battingTeam: populatedInnings.battingTeam,
+      bowlingTeam: populatedInnings.bowlingTeam,
+      striker: populatedInnings.striker,
+      nonStriker: populatedInnings.nonStriker,
+      currentBowler: populatedInnings.currentBowler,
+      fallOfWickets: populatedInnings.fallOfWickets,
+      strikerRuns: 0,
+      strikerBalls: 0,
+      nonStrikerRuns: 0,
+      nonStrikerBalls: 0,
+      bowlerOvers: "0.0",
+      bowlerRuns: 0,
+      bowlerWickets: 0
+    });
+  }
 
   res.json({ success: true });
 };
@@ -251,35 +253,37 @@ exports.startOver = async (req, res) => {
 
     // Emit live score update with updated bowler stats
     const io = require("../services/socket").getIO();
-    const match = await Match.findById(matchId);
-    const populatedInnings = await Innings.findById(innings._id)
-      .populate("battingTeam", "name")
-      .populate("bowlingTeam", "name")
-      .populate("striker", "name")
-      .populate("nonStriker", "name")
-      .populate("currentBowler", "name")
-      .populate("fallOfWickets.playerId", "name")
-      .populate("fallOfWickets.bowlerId", "name")
-      .populate("fallOfWickets.fielderId", "name");
+    if (io) {
+      const match = await Match.findById(matchId);
+      const populatedInnings = await Innings.findById(innings._id)
+        .populate("battingTeam", "name")
+        .populate("bowlingTeam", "name")
+        .populate("striker", "name")
+        .populate("nonStriker", "name")
+        .populate("currentBowler", "name")
+        .populate("fallOfWickets.playerId", "name")
+        .populate("fallOfWickets.bowlerId", "name")
+        .populate("fallOfWickets.fielderId", "name");
 
-    io.to(`match_${matchId}`).emit("liveScoreUpdate", {
-      runs: populatedInnings.totalRuns,
-      wickets: populatedInnings.totalWickets,
-      overs: populatedInnings.totalOvers,
-      battingTeam: populatedInnings.battingTeam,
-      bowlingTeam: populatedInnings.bowlingTeam,
-      striker: populatedInnings.striker,
-      nonStriker: populatedInnings.nonStriker,
-      currentBowler: populatedInnings.currentBowler,
-      fallOfWickets: populatedInnings.fallOfWickets,
-      strikerRuns: populatedInnings.strikerRuns,
-      strikerBalls: populatedInnings.strikerBalls,
-      nonStrikerRuns: populatedInnings.nonStrikerRuns,
-      nonStrikerBalls: populatedInnings.nonStrikerBalls,
-      bowlerOvers: populatedInnings.bowlerOvers,
-      bowlerRuns: populatedInnings.bowlerRuns,
-      bowlerWickets: populatedInnings.bowlerWickets
-    });
+      io.to(`match_${matchId}`).emit("liveScoreUpdate", {
+        runs: populatedInnings.totalRuns,
+        wickets: populatedInnings.totalWickets,
+        overs: populatedInnings.totalOvers,
+        battingTeam: populatedInnings.battingTeam,
+        bowlingTeam: populatedInnings.bowlingTeam,
+        striker: populatedInnings.striker,
+        nonStriker: populatedInnings.nonStriker,
+        currentBowler: populatedInnings.currentBowler,
+        fallOfWickets: populatedInnings.fallOfWickets,
+        strikerRuns: populatedInnings.strikerRuns,
+        strikerBalls: populatedInnings.strikerBalls,
+        nonStrikerRuns: populatedInnings.nonStrikerRuns,
+        nonStrikerBalls: populatedInnings.nonStrikerBalls,
+        bowlerOvers: populatedInnings.bowlerOvers,
+        bowlerRuns: populatedInnings.bowlerRuns,
+        bowlerWickets: populatedInnings.bowlerWickets
+      });
+    }
 
     res.json(over);
   } catch (err) {

@@ -80,9 +80,6 @@ module.exports = {
   },
 
   getIO: () => {
-    if (!io) {
-      throw new Error("Socket.io not initialized yet!");
-    }
     return io;
   },
 };

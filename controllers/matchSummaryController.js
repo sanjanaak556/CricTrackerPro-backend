@@ -578,7 +578,10 @@ exports.autoGenerateSummary = async (req, res) => {
     );
 
     // Emit socket update
-    getIO().emit("matchSummaryUpdated", summary);
+    const io = getIO();
+    if (io) {
+      io.emit("matchSummaryUpdated", summary);
+    }
 
     res.json({
       message: "Auto summary generated successfully",

@@ -165,27 +165,33 @@ exports.processBall = async (ball) => {
     innings.currentBowler = null;
     innings.currentOverId = null;
 
-    io.to(`match_${match._id}`).emit("overComplete", {
-      completedOver: o
-    });
+    if (io) {
+      io.to(`match_${match._id}`).emit("overComplete", {
+        completedOver: o
+      });
+    }
   }
 
   /* ---------- WICKET FLOW ---------- */
   if (ball.isWicket) {
-    io.to(`match_${match._id}`).emit("newBatterNeeded", {
-      which: "striker"
-    });
+    if (io) {
+      io.to(`match_${match._id}`).emit("newBatterNeeded", {
+        which: "striker"
+      });
+    }
   }
 
   /* ---------- INNINGS COMPLETE ---------- */
   if (innings.totalWickets === 10 || o >= match.overs) {
     innings.completed = true;
 
-    io.to(`match_${match._id}`).emit("inningsComplete", {
-      runs: innings.totalRuns,
-      wickets: innings.totalWickets,
-      inningsNumber: innings.inningsNumber
-    });
+    if (io) {
+      io.to(`match_${match._id}`).emit("inningsComplete", {
+        runs: innings.totalRuns,
+        wickets: innings.totalWickets,
+        inningsNumber: innings.inningsNumber
+      });
+    }
   }
 
   // Calculate player stats before saving
@@ -204,30 +210,34 @@ exports.processBall = async (ball) => {
     .populate("fallOfWickets.bowlerId", "name")
     .populate("fallOfWickets.fielderId", "name");
 
-  io.to(`match_${match._id}`).emit("liveScoreUpdate", {
-    runs: populatedInnings.totalRuns,
-    wickets: populatedInnings.totalWickets,
-    overs: populatedInnings.totalOvers,
-    battingTeam: populatedInnings.battingTeam,
-    bowlingTeam: populatedInnings.bowlingTeam,
-    striker: populatedInnings.striker,
-    nonStriker: populatedInnings.nonStriker,
-    currentBowler: populatedInnings.currentBowler,
-    fallOfWickets: populatedInnings.fallOfWickets,
-    strikerRuns: populatedInnings.strikerRuns,
-    strikerBalls: populatedInnings.strikerBalls,
-    nonStrikerRuns: populatedInnings.nonStrikerRuns,
-    nonStrikerBalls: populatedInnings.nonStrikerBalls,
-    bowlerOvers: populatedInnings.bowlerOvers,
-    bowlerRuns: populatedInnings.bowlerRuns,
-    bowlerWickets: populatedInnings.bowlerWickets
-  });
+  if (io) {
+    io.to(`match_${match._id}`).emit("liveScoreUpdate", {
+      runs: populatedInnings.totalRuns,
+      wickets: populatedInnings.totalWickets,
+      overs: populatedInnings.totalOvers,
+      battingTeam: populatedInnings.battingTeam,
+      bowlingTeam: populatedInnings.bowlingTeam,
+      striker: populatedInnings.striker,
+      nonStriker: populatedInnings.nonStriker,
+      currentBowler: populatedInnings.currentBowler,
+      fallOfWickets: populatedInnings.fallOfWickets,
+      strikerRuns: populatedInnings.strikerRuns,
+      strikerBalls: populatedInnings.strikerBalls,
+      nonStrikerRuns: populatedInnings.nonStrikerRuns,
+      nonStrikerBalls: populatedInnings.nonStrikerBalls,
+      bowlerOvers: populatedInnings.bowlerOvers,
+      bowlerRuns: populatedInnings.bowlerRuns,
+      bowlerWickets: populatedInnings.bowlerWickets
+    });
+  }
 
   /* ---------- BALL REMOVED EVENT ---------- */
   // Emit ball removed event for viewers to update active over and balls
-  io.to(`match_${match._id}`).emit("ballRemoved", {
-    overId: over._id
-  });
+  if (io) {
+    io.to(`match_${match._id}`).emit("ballRemoved", {
+      overId: over._id
+    });
+  }
 
   /* ---------- BALL ADDED EVENT ---------- */
   // Emit ball added event for viewers to update active over and balls
@@ -238,17 +248,23 @@ exports.processBall = async (ball) => {
     overNumber: over.overNumber,
     bowler: populatedBall.bowler
   };
-  io.to(`match_${match._id}`).emit("ballAdded", ballAddedData);
-  console.log(`🎾 Ball added event emitted to match_${match._id}:`, ballAddedData);
+  if (io) {
+    io.to(`match_${match._id}`).emit("ballAdded", ballAddedData);
+    console.log(`🎾 Ball added event emitted to match_${match._id}:`, ballAddedData);
+  }
 
   /* ---------- COMMENTARY ---------- */
   const commentaryData = {
     text: buildCommentary(ball, o, b),
     type: ball.isWicket ? "WICKET" : ball.runs === 6 ? "SIX" : ball.runs === 4 ? "FOUR" : ball.extraType !== "none" ? "EXTRA" : ball.runs > 0 ? "NORMAL" : "INFO"
   };
-  io.to(`match_${match._id}`).emit("newCommentary", commentaryData);
-  console.log(`💬 Commentary emitted to match_${match._id}:`, commentaryData);
+  if (io) {
+    io.to(`match_${match._id}`).emit("newCommentary", commentaryData);
+    console.log(`💬 Commentary emitted to match_${match._id}:`, commentaryData);
+  }
 };
+
+exports.calculatePlayerStats = calculatePlayerStats;
 
 /* =====================================================
    REVERSE BALL PROCESSING (FOR UNDO)
@@ -329,22 +345,24 @@ exports.reverseProcessBall = async (ball) => {
     .populate("fallOfWickets.bowlerId", "name")
     .populate("fallOfWickets.fielderId", "name");
 
-  io.to(`match_${match._id}`).emit("liveScoreUpdate", {
-    runs: populatedInnings.totalRuns,
-    wickets: populatedInnings.totalWickets,
-    overs: populatedInnings.totalOvers,
-    battingTeam: populatedInnings.battingTeam,
-    bowlingTeam: populatedInnings.bowlingTeam,
-    striker: populatedInnings.striker,
-    nonStriker: populatedInnings.nonStriker,
-    currentBowler: populatedInnings.currentBowler,
-    fallOfWickets: populatedInnings.fallOfWickets,
-    strikerRuns: populatedInnings.strikerRuns,
-    strikerBalls: populatedInnings.strikerBalls,
-    nonStrikerRuns: populatedInnings.nonStrikerRuns,
-    nonStrikerBalls: populatedInnings.nonStrikerBalls,
-    bowlerOvers: populatedInnings.bowlerOvers,
-    bowlerRuns: populatedInnings.bowlerRuns,
-    bowlerWickets: populatedInnings.bowlerWickets
-  });
+  if (io) {
+    io.to(`match_${match._id}`).emit("liveScoreUpdate", {
+      runs: populatedInnings.totalRuns,
+      wickets: populatedInnings.totalWickets,
+      overs: populatedInnings.totalOvers,
+      battingTeam: populatedInnings.battingTeam,
+      bowlingTeam: populatedInnings.bowlingTeam,
+      striker: populatedInnings.striker,
+      nonStriker: populatedInnings.nonStriker,
+      currentBowler: populatedInnings.currentBowler,
+      fallOfWickets: populatedInnings.fallOfWickets,
+      strikerRuns: populatedInnings.strikerRuns,
+      strikerBalls: populatedInnings.strikerBalls,
+      nonStrikerRuns: populatedInnings.nonStrikerRuns,
+      nonStrikerBalls: populatedInnings.nonStrikerBalls,
+      bowlerOvers: populatedInnings.bowlerOvers,
+      bowlerRuns: populatedInnings.bowlerRuns,
+      bowlerWickets: populatedInnings.bowlerWickets
+    });
+  }
 };
