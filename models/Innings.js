@@ -63,17 +63,6 @@ const inningsSchema = new mongoose.Schema(
 
     isActive: { type: Boolean, default: true },
 
-    bowlerOvers: {
-      type: Object,
-      default: {}
-    },
-
-    lastOverBowler: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Player",
-      default: null
-    },
-
     fallOfWickets: [
       {
         wicketNumber: { type: Number, required: true },

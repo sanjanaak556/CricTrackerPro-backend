@@ -34,12 +34,12 @@ const calculatePlayerStats = async (innings) => {
 
   // Calculate striker and non-striker stats
   balls.forEach(ball => {
-    if (ball.striker && ball.striker.toString() === innings.striker?.toString()) {
+    if (ball.striker && innings.striker && ball.striker.toString() === innings.striker.toString()) {
       if (ball.isLegalDelivery) {
         strikerBalls++;
       }
       strikerRuns += ball.runs;
-    } else if (ball.striker && ball.striker.toString() === innings.nonStriker?.toString()) {
+    } else if (ball.striker && innings.nonStriker && ball.striker.toString() === innings.nonStriker.toString()) {
       if (ball.isLegalDelivery) {
         nonStrikerBalls++;
       }
@@ -50,7 +50,7 @@ const calculatePlayerStats = async (innings) => {
   // Calculate current bowler stats
   if (innings.currentBowler) {
     const bowlerBalls = balls.filter(ball =>
-      ball.bowler && ball.bowler._id.toString() === innings.currentBowler.toString()
+      ball.bowler && ball.bowler._id && ball.bowler._id.toString() === innings.currentBowler.toString()
     );
 
     let legalDeliveries = 0;

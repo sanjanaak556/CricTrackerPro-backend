@@ -245,6 +245,42 @@ exports.startOver = async (req, res) => {
     innings.currentOverId = over._id;
     await innings.save();
 
+    // Recalculate player stats when bowler changes
+    const { calculatePlayerStats } = require("../services/scoreEngine");
+    await calculatePlayerStats(innings);
+
+    // Emit live score update with updated bowler stats
+    const io = require("../services/socket").getIO();
+    const match = await Match.findById(matchId);
+    const populatedInnings = await Innings.findById(innings._id)
+      .populate("battingTeam", "name")
+      .populate("bowlingTeam", "name")
+      .populate("striker", "name")
+      .populate("nonStriker", "name")
+      .populate("currentBowler", "name")
+      .populate("fallOfWickets.playerId", "name")
+      .populate("fallOfWickets.bowlerId", "name")
+      .populate("fallOfWickets.fielderId", "name");
+
+    io.to(`match_${matchId}`).emit("liveScoreUpdate", {
+      runs: populatedInnings.totalRuns,
+      wickets: populatedInnings.totalWickets,
+      overs: populatedInnings.totalOvers,
+      battingTeam: populatedInnings.battingTeam,
+      bowlingTeam: populatedInnings.bowlingTeam,
+      striker: populatedInnings.striker,
+      nonStriker: populatedInnings.nonStriker,
+      currentBowler: populatedInnings.currentBowler,
+      fallOfWickets: populatedInnings.fallOfWickets,
+      strikerRuns: populatedInnings.strikerRuns,
+      strikerBalls: populatedInnings.strikerBalls,
+      nonStrikerRuns: populatedInnings.nonStrikerRuns,
+      nonStrikerBalls: populatedInnings.nonStrikerBalls,
+      bowlerOvers: populatedInnings.bowlerOvers,
+      bowlerRuns: populatedInnings.bowlerRuns,
+      bowlerWickets: populatedInnings.bowlerWickets
+    });
+
     res.json(over);
   } catch (err) {
     console.error("Start over error:", err);
