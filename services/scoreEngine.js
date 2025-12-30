@@ -263,7 +263,8 @@ exports.processBall = async (ball) => {
   /* ---------- COMMENTARY ---------- */
   const commentaryData = {
     text: buildCommentary(ball, o, b),
-    type: ball.isWicket ? "WICKET" : ball.runs === 6 ? "SIX" : ball.runs === 4 ? "FOUR" : ball.extraType !== "none" ? "EXTRA" : ball.runs > 0 ? "NORMAL" : "INFO"
+    type: ball.isWicket ? "WICKET" : ball.runs === 6 ? "SIX" : ball.runs === 4 ? "FOUR" : ball.extraType !== "none" ? "EXTRA" : ball.runs > 0 ? "NORMAL" : "INFO",
+    createdAt: new Date()
   };
   if (io) {
     io.to(`match_${match._id}`).emit("newCommentary", commentaryData);
