@@ -124,10 +124,13 @@ exports.startInnings = async (req, res) => {
     }
   }
 
+  // Deactivate all previous innings for this match
+  await Innings.updateMany({ matchId }, { isActive: false });
+
+  // Find or create the innings for the current inningsNumber
   let innings = await Innings.findOne({
     matchId,
-    inningsNumber,
-    isActive: true
+    inningsNumber
   });
 
   if (!innings) {
@@ -143,9 +146,14 @@ exports.startInnings = async (req, res) => {
       totalWickets: 0
     });
     match.innings.push(innings._id);
-    match.currentInnings = innings._id;
-    await match.save();
+  } else {
+    // Activate the existing innings
+    innings.isActive = true;
+    await innings.save();
   }
+
+  match.currentInnings = innings._id;
+  await match.save();
 
   innings.striker = striker;
   innings.nonStriker = nonStriker;
@@ -189,7 +197,8 @@ exports.startInnings = async (req, res) => {
       nonStrikerBalls: 0,
       bowlerOvers: "0.0",
       bowlerRuns: 0,
-      bowlerWickets: 0
+      bowlerWickets: 0,
+      inningsNumber: populatedInnings.inningsNumber
     });
   }
 
@@ -281,7 +290,8 @@ exports.startOver = async (req, res) => {
         nonStrikerBalls: populatedInnings.nonStrikerBalls,
         bowlerOvers: populatedInnings.bowlerOvers,
         bowlerRuns: populatedInnings.bowlerRuns,
-        bowlerWickets: populatedInnings.bowlerWickets
+        bowlerWickets: populatedInnings.bowlerWickets,
+        inningsNumber: populatedInnings.inningsNumber
       });
     }
 

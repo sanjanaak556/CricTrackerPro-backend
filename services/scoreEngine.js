@@ -233,7 +233,8 @@ exports.processBall = async (ball) => {
       nonStrikerBalls: populatedInnings.nonStrikerBalls,
       bowlerOvers: populatedInnings.bowlerOvers,
       bowlerRuns: populatedInnings.bowlerRuns,
-      bowlerWickets: populatedInnings.bowlerWickets
+      bowlerWickets: populatedInnings.bowlerWickets,
+      inningsNumber: populatedInnings.inningsNumber
     });
   }
 
@@ -374,7 +375,8 @@ exports.reverseProcessBall = async (ball) => {
       nonStrikerBalls: populatedInnings.nonStrikerBalls,
       bowlerOvers: populatedInnings.bowlerOvers,
       bowlerRuns: populatedInnings.bowlerRuns,
-      bowlerWickets: populatedInnings.bowlerWickets
+      bowlerWickets: populatedInnings.bowlerWickets,
+      inningsNumber: populatedInnings.inningsNumber
     });
   }
 };
