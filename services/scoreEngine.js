@@ -185,6 +185,12 @@ exports.processBall = async (ball) => {
   if (innings.totalWickets === 10 || o >= match.overs) {
     innings.completed = true;
 
+    // Set target for second innings if this is the first innings
+    if (innings.inningsNumber === 1) {
+      match.target = innings.totalRuns + 1;
+      await match.save();
+    }
+
     if (io) {
       io.to(`match_${match._id}`).emit("inningsComplete", {
         runs: innings.totalRuns,
@@ -327,6 +333,12 @@ exports.reverseProcessBall = async (ball) => {
   // If innings was completed due to this ball, reverse it
   if (innings.totalWickets < 10 && o < match.overs) {
     innings.completed = false;
+
+    // Clear target if this was the first innings being reversed
+    if (innings.inningsNumber === 1) {
+      match.target = null;
+      await match.save();
+    }
   }
 
   // Calculate player stats before saving

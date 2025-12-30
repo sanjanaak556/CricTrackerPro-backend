@@ -89,6 +89,8 @@ const matchSchema = new mongoose.Schema(
       overs: { type: String, default: "0.0" },
     },
 
+    target: { type: Number, default: null },
+
     winnerTeam: { type: mongoose.Schema.Types.ObjectId, ref: "Team" },
     winType: {
       type: String,
