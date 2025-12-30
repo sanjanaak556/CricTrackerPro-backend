@@ -19,7 +19,8 @@ const {
     getPublicLiveMatches,
     getMatchPlayers,
     getActiveMatchForScorer,
-    getLoggedInLiveMatches
+    getLoggedInLiveMatches,
+    endInnings
 } = require("../controllers/matchController");
 
 // Create match (admin only)
@@ -64,6 +65,8 @@ router.put("/:matchId/live-score", auth, scorer, updateLiveScore);
 // Get match by ID
 router.get("/:matchId", auth, getMatchById);
 
+// End innings (scorer only)
+router.put("/:matchId/end-innings", auth, scorer, endInnings);
 
 module.exports = router;
 

@@ -422,3 +422,50 @@ exports.getActiveMatchForScorer = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// 15) End Innings
+exports.endInnings = async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const matchId = req.params.matchId;
+
+    const match = await Match.findById(matchId);
+    if (!match) return res.status(404).json({ message: "Match not found" });
+
+    const innings = await Innings.findOne({ matchId, isActive: true, completed: false });
+    if (!innings) {
+      return res.status(400).json({ message: "No active innings to end" });
+    }
+
+    // Mark innings as completed
+    innings.completed = true;
+    innings.endReason = reason || "Manual end";
+    await innings.save();
+
+    // Set target for second innings if this is the first innings
+    if (innings.inningsNumber === 1) {
+      match.target = innings.totalRuns + 1;
+      await match.save();
+    }
+
+    // Emit socket event for innings completion
+    const { getIO } = require("../services/socket");
+    const io = getIO();
+    if (io) {
+      io.to(`match_${match._id}`).emit("inningsComplete", {
+        runs: innings.totalRuns,
+        wickets: innings.totalWickets,
+        inningsNumber: innings.inningsNumber,
+        reason: reason || "Manual end"
+      });
+    }
+
+    res.json({
+      message: "Innings ended successfully",
+      innings,
+      target: match.target
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
