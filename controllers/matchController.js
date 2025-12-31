@@ -3,6 +3,7 @@ const Team = require("../models/Team");
 const Player = require("../models/Player");
 const User = require("../models/User");
 const UserRole = require("../models/UserRole");
+const Innings = require("../models/Innings");
 const { generateMatchSummary } = require("./matchSummaryController");
 
 // 1) Create Match

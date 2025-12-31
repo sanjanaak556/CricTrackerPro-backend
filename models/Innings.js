@@ -86,6 +86,8 @@ const inningsSchema = new mongoose.Schema(
 
     completed: { type: Boolean, default: false },
 
+    endReason: { type: String, default: null },
+
     isActive: { type: Boolean, default: true },
 
     fallOfWickets: [
