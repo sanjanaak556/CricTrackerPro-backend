@@ -49,6 +49,31 @@ const inningsSchema = new mongoose.Schema(
     bowlerRuns: { type: Number, default: 0 },
     bowlerWickets: { type: Number, default: 0 },
 
+    // Full player stats for the innings
+    batterStats: [
+      {
+        playerId: { type: mongoose.Schema.Types.ObjectId, ref: "Player" },
+        name: String,
+        runs: Number,
+        balls: Number,
+        fours: Number,
+        sixes: Number,
+        strikeRate: Number,
+      },
+    ],
+
+    bowlerStats: [
+      {
+        playerId: { type: mongoose.Schema.Types.ObjectId, ref: "Player" },
+        name: String,
+        overs: String,
+        maidens: Number,
+        runs: Number,
+        wickets: Number,
+        economy: Number,
+      },
+    ],
+
     balls: [
       {
         type: mongoose.Schema.Types.ObjectId,

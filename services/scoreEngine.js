@@ -23,49 +23,120 @@ const rotateStrike = (innings) => {
 /* ===================== CALCULATE PLAYER STATS ===================== */
 const calculatePlayerStats = async (innings) => {
   const Ball = require("../models/Ball");
+  const Player = require("../models/Player");
 
   // Get all balls for this innings
-  const balls = await Ball.find({ inningsId: innings._id }).populate('bowler');
+  const balls = await Ball.find({ inningsId: innings._id }).populate('bowler striker');
 
-  // Initialize stats
+  // Initialize stats objects
+  const batterStats = {};
+  const bowlerStats = {};
+
+  // Calculate stats for all batters
+  balls.forEach(ball => {
+    if (ball.striker) {
+      const strikerId = ball.striker._id.toString();
+
+      if (!batterStats[strikerId]) {
+        batterStats[strikerId] = {
+          playerId: ball.striker._id,
+          name: ball.striker.name || "Unknown Batter",
+          runs: 0,
+          balls: 0,
+          fours: 0,
+          sixes: 0,
+          strikeRate: 0,
+        };
+      }
+
+      if (ball.isLegalDelivery) batterStats[strikerId].balls++;
+      batterStats[strikerId].runs += ball.runs;
+
+      if (ball.runs === 4) batterStats[strikerId].fours++;
+      if (ball.runs === 6) batterStats[strikerId].sixes++;
+    }
+  });
+
+  // Calculate stats for all bowlers
+  balls.forEach(ball => {
+    if (ball.bowler) {
+      const bowlerId = ball.bowler._id.toString();
+
+      if (!bowlerStats[bowlerId]) {
+        bowlerStats[bowlerId] = {
+          playerId: ball.bowler._id,
+          name: ball.bowler.name || "Unknown Bowler",
+          overs: "0.0",
+          maidens: 0,
+          runs: 0,
+          wickets: 0,
+          economy: 0,
+          legalDeliveries: 0,
+        };
+      }
+
+      if (ball.isLegalDelivery) {
+        bowlerStats[bowlerId].legalDeliveries++;
+      }
+
+      bowlerStats[bowlerId].runs += ball.runs + extraRuns(ball.extraType, ball.runs);
+      if (ball.isWicket && ball.extraType !== "wide") {
+        bowlerStats[bowlerId].wickets++;
+      }
+    }
+  });
+
+  // Calculate derived stats for batters
+  Object.values(batterStats).forEach(batter => {
+    batter.strikeRate = batter.balls > 0 ? (batter.runs / batter.balls) * 100 : 0;
+  });
+
+  // Calculate derived stats for bowlers
+  Object.values(bowlerStats).forEach(bowler => {
+    const overs = Math.floor(bowler.legalDeliveries / 6);
+    const ballsInOver = bowler.legalDeliveries % 6;
+    bowler.overs = `${overs}.${ballsInOver}`;
+    bowler.economy = bowler.legalDeliveries > 0 ? (bowler.runs / (bowler.legalDeliveries / 6)) : 0;
+    // Remove legalDeliveries as it's not needed in final stats
+    delete bowler.legalDeliveries;
+  });
+
+  // Calculate current player stats for live display
   let strikerRuns = 0, strikerBalls = 0;
   let nonStrikerRuns = 0, nonStrikerBalls = 0;
   let bowlerOvers = "0.0", bowlerRuns = 0, bowlerWickets = 0;
 
-  // Calculate striker and non-striker stats
-  balls.forEach(ball => {
-    if (ball.striker && innings.striker && ball.striker.toString() === innings.striker.toString()) {
-      if (ball.isLegalDelivery) {
-        strikerBalls++;
-      }
-      strikerRuns += ball.runs;
-    } else if (ball.striker && innings.nonStriker && ball.striker.toString() === innings.nonStriker.toString()) {
-      if (ball.isLegalDelivery) {
-        nonStrikerBalls++;
-      }
-      nonStrikerRuns += ball.runs;
+  // Current striker stats
+  if (innings.striker) {
+    const strikerId = innings.striker.toString();
+    if (batterStats[strikerId]) {
+      strikerRuns = batterStats[strikerId].runs;
+      strikerBalls = batterStats[strikerId].balls;
     }
-  });
+  }
 
-  // Calculate current bowler stats
+  // Current non-striker stats
+  if (innings.nonStriker) {
+    const nonStrikerId = innings.nonStriker.toString();
+    if (batterStats[nonStrikerId]) {
+      nonStrikerRuns = batterStats[nonStrikerId].runs;
+      nonStrikerBalls = batterStats[nonStrikerId].balls;
+    }
+  }
+
+  // Current bowler stats
   if (innings.currentBowler) {
-    const bowlerBalls = balls.filter(ball =>
-      ball.bowler && ball.bowler._id && ball.bowler._id.toString() === innings.currentBowler.toString()
-    );
-
-    let legalDeliveries = 0;
-    bowlerBalls.forEach(ball => {
-      bowlerRuns += ball.runs + extraRuns(ball.extraType, ball.runs);
-      if (ball.isWicket) bowlerWickets++;
-      if (ball.isLegalDelivery) legalDeliveries++;
-    });
-
-    const overs = Math.floor(legalDeliveries / 6);
-    const ballsInOver = legalDeliveries % 6;
-    bowlerOvers = `${overs}.${ballsInOver}`;
+    const bowlerId = innings.currentBowler.toString();
+    if (bowlerStats[bowlerId]) {
+      bowlerOvers = bowlerStats[bowlerId].overs;
+      bowlerRuns = bowlerStats[bowlerId].runs;
+      bowlerWickets = bowlerStats[bowlerId].wickets;
+    }
   }
 
   // Update innings with calculated stats
+  innings.batterStats = Object.values(batterStats);
+  innings.bowlerStats = Object.values(bowlerStats);
   innings.strikerRuns = strikerRuns;
   innings.strikerBalls = strikerBalls;
   innings.nonStrikerRuns = nonStrikerRuns;
@@ -203,6 +274,12 @@ exports.processBall = async (ball) => {
   // Calculate player stats before saving
   await calculatePlayerStats(innings);
   await innings.save();
+
+  /* ---------- UPDATE MATCH CURRENT SCORE ---------- */
+  match.currentScore.runs = innings.totalRuns;
+  match.currentScore.wickets = innings.totalWickets;
+  match.currentScore.overs = innings.totalOvers;
+  await match.save();
 
   /* ---------- LIVE SCORE ---------- */
   // Populate player data for live score update
@@ -346,6 +423,12 @@ exports.reverseProcessBall = async (ball) => {
   // Calculate player stats before saving
   await calculatePlayerStats(innings);
   await innings.save();
+
+  /* ---------- UPDATE MATCH CURRENT SCORE ---------- */
+  match.currentScore.runs = innings.totalRuns;
+  match.currentScore.wickets = innings.totalWickets;
+  match.currentScore.overs = innings.totalOvers;
+  await match.save();
 
   /* ---------- LIVE SCORE ---------- */
   // Populate player data for live score update
