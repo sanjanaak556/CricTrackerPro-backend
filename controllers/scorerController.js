@@ -3,6 +3,7 @@ const Match = require("../models/Match");
 const Ball = require("../models/Ball");
 const Over = require("../models/Over");
 const Innings = require("../models/Innings");
+const Player = require("../models/Player");
 const { processBall } = require("../services/scoreEngine");
 
 /* =========================================================
@@ -256,12 +257,20 @@ exports.startOver = async (req, res) => {
     innings.currentOverId = over._id;
     await innings.save();
 
+    // Emit overStarted event to notify clients immediately
+    const io = require("../services/socket").getIO();
+    if (io) {
+      const populatedBowler = await Player.findById(bowler).select("name");
+      io.to(`match_${matchId}`).emit("overStarted", {
+        bowler: populatedBowler
+      });
+    }
+
     // Recalculate player stats when bowler changes
     const { calculatePlayerStats } = require("../services/scoreEngine");
     await calculatePlayerStats(innings);
 
     // Emit live score update with updated bowler stats
-    const io = require("../services/socket").getIO();
     if (io) {
       const match = await Match.findById(matchId);
       const populatedInnings = await Innings.findById(innings._id)

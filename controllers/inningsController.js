@@ -143,7 +143,8 @@ exports.getInningsByMatchId = async (req, res) => {
     const innings = await Innings.find({ matchId })
       .sort({ inningsNumber: 1 })
       .populate("battingTeam", "name shortName logo")
-      .populate("bowlingTeam", "name shortName logo");
+      .populate("bowlingTeam", "name shortName logo")
+      .populate("currentBowler", "name");
 
     // ALWAYS return array (even empty)
     return res.status(200).json(innings);
