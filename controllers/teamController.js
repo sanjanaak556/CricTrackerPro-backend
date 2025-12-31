@@ -145,3 +145,26 @@ exports.deleteTeam = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+/* ================================
+   SEARCH TEAMS BY NAME
+================================ */
+exports.searchTeams = async (req, res) => {
+  try {
+    const { name } = req.query;
+    if (!name) {
+      return res.status(400).json({ message: "Name query parameter is required" });
+    }
+
+    const teams = await Team.find({
+      name: { $regex: name, $options: "i" }, // Case-insensitive search
+      isActive: true,
+    })
+      .select("name logo")
+      .limit(10); // Limit results to 10
+
+    res.json({ teams });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

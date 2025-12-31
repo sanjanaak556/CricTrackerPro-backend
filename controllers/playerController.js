@@ -224,3 +224,27 @@ exports.deletePlayer = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+/* ============================= */
+/* SEARCH PLAYERS BY NAME */
+/* ============================= */
+exports.searchPlayers = async (req, res) => {
+  try {
+    const { name } = req.query;
+    if (!name) {
+      return res.status(400).json({ message: "Name query parameter is required" });
+    }
+
+    const players = await Player.find({
+      name: { $regex: name, $options: "i" }, // Case-insensitive search
+      isActive: true,
+    })
+      .populate("teamId", "name")
+      .select("name role teamId image")
+      .limit(10); // Limit results to 10
+
+    res.json({ players });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

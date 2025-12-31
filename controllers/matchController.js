@@ -470,3 +470,26 @@ exports.endInnings = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// 16) Search Matches by Name
+exports.searchMatches = async (req, res) => {
+  try {
+    const { name } = req.query;
+    if (!name) {
+      return res.status(400).json({ message: "Name query parameter is required" });
+    }
+
+    const matches = await Match.find({
+      matchName: { $regex: name, $options: "i" }, // Case-insensitive search
+      isActive: true,
+    })
+      .populate("teamA", "name logo")
+      .populate("teamB", "name logo")
+      .select("matchName matchType teamA teamB status")
+      .limit(10); // Limit results to 10
+
+    res.json({ matches });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

@@ -9,11 +9,13 @@ const {
     createTeam,
     getTeams,
     updateTeam,
-    deleteTeam
+    deleteTeam,
+    searchTeams
 } = require("../controllers/teamController");
 
 router.post("/", auth, admin, upload.single("logo"), createTeam);
 router.get("/", auth, getTeams);
+router.get("/search", auth, searchTeams);
 router.put("/:teamId", auth, admin, upload.single("logo"), updateTeam);
 router.delete("/:teamId", auth, admin, deleteTeam);
 

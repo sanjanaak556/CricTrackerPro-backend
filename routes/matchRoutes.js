@@ -8,6 +8,7 @@ const scorer = require("../middleware/scorerMiddleware");
 const {
     createMatch,
     getAllMatches,
+    searchMatches,
     getMatchById,
     updateMatch,
     deleteMatch,
@@ -28,6 +29,9 @@ router.post("/", auth, admin, createMatch);
 
 // Get all matches (any logged-in user)
 router.get("/", auth, getAllMatches);
+
+// Search matches by name
+router.get("/search", auth, searchMatches);
 
 // Get active scorer
 router.get("/scorer/active", auth, scorer, getActiveMatchForScorer);

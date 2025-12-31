@@ -8,13 +8,15 @@ const upload = require("../utils/upload");
 const {
     addPlayer,
     getAllPlayers,
+    searchPlayers,
     getPlayersByTeam,
     updatePlayer,
-    deletePlayer
+    deletePlayer,
 } = require("../controllers/playerController");
 
 router.post("/", auth, admin, upload.single("image"), addPlayer);
 router.get("/", auth, getAllPlayers);
+router.get("/search", auth, searchPlayers);
 router.get("/team/:teamId", auth, getPlayersByTeam);
 router.put("/:playerId", auth, admin, upload.single("image"), updatePlayer);
 router.delete("/:playerId", auth, admin, deletePlayer);
