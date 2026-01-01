@@ -67,7 +67,20 @@ exports.createMatchSummary = async (req, res) => {
 exports.listAllSummaries = async (req, res) => {
   try {
     const summaries = await MatchSummary.find()
-      .populate("team1 team2 playerOfTheMatch winnerTeamId")
+      .populate("team1", "name logo")
+      .populate("team2", "name logo")
+      .populate("playerOfTheMatch", "name")
+      .populate("winnerTeamId", "name logo")
+      .populate("topScorer.playerId", "name")
+      .populate("bestBowler.playerId", "name")
+      .populate({
+        path: "matchId",
+        select: "matchName matchNumber matchType teamA teamB",
+        populate: [
+          { path: "teamA", select: "name logo" },
+          { path: "teamB", select: "name logo" }
+        ]
+      })
       .sort({ createdAt: -1 });
 
     res.json(summaries);
