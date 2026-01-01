@@ -1,6 +1,8 @@
 const User = require("../models/User");
 const Team = require("../models/Team");
 const Match = require("../models/Match");
+const Innings = require("../models/Innings");
+const Player = require("../models/Player");
 
 // -------------------------------------------------------------
 // GET FOLLOWED TEAMS
@@ -61,12 +63,23 @@ exports.getViewerDashboard = async (req, res) => {
     const totalMatches = await Match.countDocuments();
 
     // Highlights (last 6 completed matches)
-    const highlights = await Match.find({ status: "completed" })
+    const highlightsRaw = await Match.find({ status: "completed" })
       .sort({ updatedAt: -1 })
       .limit(6)
-      .select("teamA teamB result winner winMargin status createdAt")
       .populate("teamA", "name shortName logo")
-      .populate("teamB", "name shortName logo");
+      .populate("teamB", "name shortName logo")
+      .populate("winnerTeam", "name shortName logo");
+
+    // Add result field to each highlight
+    const highlights = highlightsRaw.map(match => {
+      let result = "Result not available";
+      if (match.status === "completed" && match.winnerTeam) {
+        result = match.winType && match.winMargin
+          ? `${match.winnerTeam.name} won by ${match.winMargin} ${match.winType}`
+          : `${match.winnerTeam.name} won`;
+      }
+      return { ...match.toObject(), result };
+    });
 
     res.json({
       totalTeams,
@@ -136,12 +149,23 @@ exports.getViewerDashboardStats = async (req, res) => {
 // -------------------------------------------------------------
 exports.getMatchHighlights = async (req, res) => {
   try {
-    const highlights = await Match.find({ status: "completed" })
+    const highlightsRaw = await Match.find({ status: "completed" })
       .sort({ updatedAt: -1 })
       .limit(6)
-      .select("teamA teamB result winner winMargin status createdAt")
       .populate("teamA", "name shortName logo")
-      .populate("teamB", "name shortName logo");
+      .populate("teamB", "name shortName logo")
+      .populate("winnerTeam", "name shortName logo");
+
+    // Add result field to each highlight
+    const highlights = highlightsRaw.map(match => {
+      let result = "Result not available";
+      if (match.status === "completed" && match.winnerTeam) {
+        result = match.winType && match.winMargin
+          ? `${match.winnerTeam.name} won by ${match.winMargin} ${match.winType}`
+          : `${match.winnerTeam.name} won`;
+      }
+      return { ...match.toObject(), result };
+    });
 
     res.json(highlights);
   } catch (err) {
@@ -149,7 +173,7 @@ exports.getMatchHighlights = async (req, res) => {
   }
 };
 
-/// -------------------------------------------------------------
+// -------------------------------------------------------------
 // GET FOLLOWED TEAMS ACTIVITY (LIVE + UPCOMING + RECENT)
 // -------------------------------------------------------------
 exports.getFollowedTeamsActivity = async (req, res) => {
@@ -201,5 +225,129 @@ exports.getFollowedTeamsActivity = async (req, res) => {
   } catch (error) {
     console.log("Followed teams activity error:", error);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+// -------------------------------------------------------------
+// GET TEAM RANKINGS
+// -------------------------------------------------------------
+exports.getTeamRankings = async (req, res) => {
+  try {
+    // Get all completed matches
+    const completedMatches = await Match.find({ status: "completed" })
+      .populate("teamA", "name")
+      .populate("teamB", "name")
+      .populate("winnerTeam", "name");
+
+    // Calculate team stats
+    const teamStats = {};
+
+    // Initialize teams
+    const allTeams = new Set();
+    completedMatches.forEach(match => {
+      allTeams.add(match.teamA._id.toString());
+      allTeams.add(match.teamB._id.toString());
+    });
+
+    // Initialize team stats
+    for (const teamId of allTeams) {
+      const team = completedMatches.find(m =>
+        m.teamA._id.toString() === teamId || m.teamB._id.toString() === teamId
+      );
+      const teamName = team.teamA._id.toString() === teamId ? team.teamA.name : team.teamB.name;
+      teamStats[teamId] = {
+        id: teamId,
+        name: teamName,
+        matches: 0,
+        wins: 0,
+        points: 0
+      };
+    }
+
+    // Count matches and wins
+    completedMatches.forEach(match => {
+      // Count matches for both teams
+      teamStats[match.teamA._id.toString()].matches++;
+      teamStats[match.teamB._id.toString()].matches++;
+
+      // Count wins
+      if (match.winnerTeam) {
+        teamStats[match.winnerTeam._id.toString()].wins++;
+      }
+    });
+
+    // Calculate points (2 points per win)
+    Object.values(teamStats).forEach(team => {
+      team.points = team.wins * 2;
+    });
+
+    // Sort by points descending, then by wins descending
+    const rankings = Object.values(teamStats)
+      .sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        return b.wins - a.wins;
+      })
+      .map((team, index) => ({
+        rank: index + 1,
+        name: team.name,
+        matches: team.matches,
+        wins: team.wins,
+        points: team.points
+      }));
+
+    res.json(rankings);
+  } catch (err) {
+    console.error("Team rankings error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// -------------------------------------------------------------
+// GET BATTER RANKINGS
+// -------------------------------------------------------------
+exports.getBatterRankings = async (req, res) => {
+  try {
+    const batters = await Player.find({ isActive: true })
+      .populate("teamId", "name")
+      .sort({ runs: -1, average: -1 })
+      .limit(50);
+
+    const rankings = batters.map((player, index) => ({
+      rank: index + 1,
+      name: player.name,
+      team: player.teamId.name,
+      runs: player.runs,
+      avg: player.average
+    }));
+
+    res.json(rankings);
+  } catch (err) {
+    console.error("Batter rankings error:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// -------------------------------------------------------------
+// GET BOWLER RANKINGS
+// -------------------------------------------------------------
+exports.getBowlerRankings = async (req, res) => {
+  try {
+    const bowlers = await Player.find({ isActive: true })
+      .populate("teamId", "name")
+      .sort({ wickets: -1, economy: 1 }) // Lower economy is better
+      .limit(50);
+
+    const rankings = bowlers.map((player, index) => ({
+      rank: index + 1,
+      name: player.name,
+      team: player.teamId.name,
+      wickets: player.wickets,
+      eco: player.economy
+    }));
+
+    res.json(rankings);
+  } catch (err) {
+    console.error("Bowler rankings error:", err);
+    res.status(500).json({ error: err.message });
   }
 };

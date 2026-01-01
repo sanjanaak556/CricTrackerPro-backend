@@ -4,6 +4,7 @@ const Player = require("../models/Player");
 const User = require("../models/User");
 const UserRole = require("../models/UserRole");
 const Innings = require("../models/Innings");
+const Ball = require("../models/Ball");
 const { generateMatchSummary } = require("./matchSummaryController");
 
 // 1) Create Match
@@ -82,7 +83,24 @@ exports.getAllMatches = async (req, res) => {
 
     console.log("✅ Matches found:", matches.length);
 
-    res.json(matches);
+    // Add result field to each match
+    const matchesWithResult = matches.map(match => {
+      let result = "Result not available";
+      if (match.status === "completed" && match.winnerTeam) {
+        result = match.winType && match.winMargin
+          ? `${match.winnerTeam.name} won by ${match.winMargin} ${match.winType}`
+          : `${match.winnerTeam.name} won`;
+      } else if (match.status === "abandoned") {
+        result = "Match abandoned";
+      } else if (match.status === "live") {
+        result = "Match in progress";
+      } else if (match.status === "upcoming") {
+        result = "Match scheduled";
+      }
+      return { ...match.toObject(), result };
+    });
+
+    res.json(matchesWithResult);
   } catch (err) {
     console.error("❌ Get matches error:", err);
     res.status(500).json({ error: err.message });
@@ -191,6 +209,95 @@ exports.startMatch = async (req, res) => {
   }
 };
 
+// Update Player Stats After Match Completion
+const updatePlayerStats = async (matchId) => {
+  try {
+    const match = await Match.findById(matchId).populate('innings');
+    if (!match || match.status !== 'completed') return;
+
+    // Get all innings for this match
+    const innings = await Innings.find({ matchId }).populate('battingTeam bowlingTeam');
+
+    // Collect all player stats from innings
+    const playerStats = {};
+
+    for (const inn of innings) {
+      // Process batter stats
+      if (inn.batterStats) {
+        for (const batter of inn.batterStats) {
+          const playerId = batter.playerId.toString();
+          if (!playerStats[playerId]) {
+            playerStats[playerId] = {
+              runs: 0,
+              ballsFaced: 0,
+              dismissals: 0,
+              wickets: 0,
+              ballsBowled: 0,
+              runsConceded: 0,
+              matchesPlayed: 1
+            };
+          }
+          playerStats[playerId].runs += batter.runs || 0;
+          playerStats[playerId].ballsFaced += batter.balls || 0;
+          // Count dismissal if they were out (not retired, etc.)
+          if (batter.runs >= 0 && inn.fallOfWickets.some(f => f.playerId.toString() === playerId)) {
+            playerStats[playerId].dismissals += 1;
+          }
+        }
+      }
+
+      // Process bowler stats
+      if (inn.bowlerStats) {
+        for (const bowler of inn.bowlerStats) {
+          const playerId = bowler.playerId.toString();
+          if (!playerStats[playerId]) {
+            playerStats[playerId] = {
+              runs: 0,
+              ballsFaced: 0,
+              dismissals: 0,
+              wickets: 0,
+              ballsBowled: 0,
+              runsConceded: 0,
+              matchesPlayed: 1
+            };
+          }
+          playerStats[playerId].wickets += bowler.wickets || 0;
+          playerStats[playerId].runsConceded += bowler.runs || 0;
+          // Calculate balls bowled from overs (assuming 6 balls per over)
+          const overs = bowler.overs ? parseFloat(bowler.overs) : 0;
+          playerStats[playerId].ballsBowled += Math.round(overs * 6);
+        }
+      }
+    }
+
+    // Update each player's stats in database
+    for (const [playerId, stats] of Object.entries(playerStats)) {
+      const player = await Player.findById(playerId);
+      if (player) {
+        // Increment cumulative stats
+        player.runs += stats.runs;
+        player.ballsFaced += stats.ballsFaced;
+        player.dismissals += stats.dismissals;
+        player.wickets += stats.wickets;
+        player.ballsBowled += stats.ballsBowled;
+        player.runsConceded += stats.runsConceded;
+        player.matchesPlayed += stats.matchesPlayed;
+
+        // Calculate derived stats
+        player.average = player.dismissals > 0 ? player.runs / player.dismissals : player.runs;
+        player.strikeRate = player.ballsFaced > 0 ? (player.runs / player.ballsFaced) * 100 : 0;
+        player.economy = player.ballsBowled > 0 ? (player.runsConceded / (player.ballsBowled / 6)) : 0;
+
+        await player.save();
+      }
+    }
+
+    console.log(`Updated stats for ${Object.keys(playerStats).length} players in match ${matchId}`);
+  } catch (error) {
+    console.error('Error updating player stats:', error);
+  }
+};
+
 // 7) Complete Match
 exports.completeMatch = async (req, res) => {
   try {
@@ -229,6 +336,14 @@ exports.completeMatch = async (req, res) => {
 
     match.status = "completed";
     await match.save();
+
+    // Update player stats after match completion
+    try {
+      await updatePlayerStats(req.params.matchId);
+    } catch (statsErr) {
+      console.error("Player stats update failed:", statsErr.message);
+      // Don't fail the match completion if stats update fails
+    }
 
     // Populate winnerTeam for response
     const updatedMatch = await Match.findById(req.params.matchId)

@@ -10,7 +10,10 @@ const {
   getViewerDashboard,
   getMatchHighlights,
   getFollowedTeamsActivity,
-  getViewerDashboardStats
+  getViewerDashboardStats,
+  getTeamRankings,
+  getBatterRankings,
+  getBowlerRankings
 } = require("../controllers/viewerController");
 
 // Viewer Dashboard
@@ -30,5 +33,9 @@ router.get("/dashboard/stats", auth, getViewerDashboardStats);
 // Followed teams activity (upcoming + recent)
 router.get("/followed/activity", auth, getFollowedTeamsActivity);
 
+// Leaderboard
+router.get("/leaderboard/teams", auth, getTeamRankings);
+router.get("/leaderboard/batters", auth, getBatterRankings);
+router.get("/leaderboard/bowlers", auth, getBowlerRankings);
 
 module.exports = router;
