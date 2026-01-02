@@ -32,7 +32,7 @@ exports.createMatch = async (req, res) => {
       return res.status(404).json({ message: "One or both teams not found" });
     }
 
-    //  Proper scheduledAt for today (UTC-safe)
+    // scheduledAt for today (UTC-safe)
     const scheduledAt = new Date();
     scheduledAt.setUTCHours(0, 0, 0, 0);
 
@@ -323,7 +323,7 @@ exports.completeMatch = async (req, res) => {
           match.winType = "runs";
           match.winMargin = teamBRuns - teamARuns;
         } else {
-          // Tie - for simplicity, no winner
+          // Tie - no winner
           match.winnerTeam = null;
           match.winType = null;
           match.winMargin = null;

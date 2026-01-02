@@ -38,8 +38,8 @@ const matchSchema = new mongoose.Schema(
         return this.matchType === "ODI"
           ? 50
           : this.matchType === "TEST"
-          ? 90
-          : 20;
+            ? 90
+            : 20;
       },
     },
 

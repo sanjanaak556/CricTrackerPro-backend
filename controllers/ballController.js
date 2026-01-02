@@ -5,9 +5,7 @@ const Match = require("../models/Match");
 const Player = require("../models/Player");
 const { processBall } = require("../services/scoreEngine");
 
-// ------------------------------------------------------
 // 1. CREATE BALL
-// ------------------------------------------------------
 exports.createBall = async (req, res) => {
   console.log("🎾 CREATE BALL HIT");
   console.log("BODY:", req.body);
@@ -103,9 +101,7 @@ exports.createBall = async (req, res) => {
   }
 };
 
-// ------------------------------------------------------
 // 2. GET BALLS BY OVER
-// ------------------------------------------------------
 exports.getBallsByOver = async (req, res) => {
   try {
     const { overId } = req.params;
@@ -122,9 +118,7 @@ exports.getBallsByOver = async (req, res) => {
   }
 };
 
-// ------------------------------------------------------
 // 3. GET SINGLE BALL
-// ------------------------------------------------------
 exports.getSingleBall = async (req, res) => {
   try {
     const ball = await Ball.findById(req.params.id)

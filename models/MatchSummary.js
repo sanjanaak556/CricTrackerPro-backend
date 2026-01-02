@@ -1,5 +1,3 @@
-// models/MatchSummary.js
-
 const mongoose = require("mongoose");
 
 const matchSummarySchema = new mongoose.Schema(
@@ -25,7 +23,7 @@ const matchSummarySchema = new mongoose.Schema(
       {
         inningsId: { type: mongoose.Schema.Types.ObjectId, ref: "Innings" },
 
-        teamId: { type: mongoose.Schema.Types.ObjectId, ref: "Team" }, // ✅ FIXED
+        teamId: { type: mongoose.Schema.Types.ObjectId, ref: "Team" },
 
         runs: Number,
         wickets: Number,

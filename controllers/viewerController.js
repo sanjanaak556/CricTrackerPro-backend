@@ -106,7 +106,7 @@ exports.getViewerDashboardStats = async (req, res) => {
 
     console.log("📅 Today range:", todayStart, todayEnd);
 
-    // ✅ Today's Matches = (scheduled today) OR (currently live)
+    // Today's Matches = (scheduled today) OR (currently live)
     const todaysMatches = await Match.countDocuments({
       $or: [
         {
@@ -127,7 +127,7 @@ exports.getViewerDashboardStats = async (req, res) => {
 
     console.log("🔴 Live matches:", liveMatches);
 
-    // ⭐ Followed Teams Count
+    //  Followed Teams Count
     const user = await User.findById(req.user.id).select("followedTeams");
     const followedTeamsCount = user?.followedTeams?.length || 0;
 

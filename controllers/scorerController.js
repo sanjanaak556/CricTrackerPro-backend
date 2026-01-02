@@ -6,9 +6,7 @@ const Innings = require("../models/Innings");
 const Player = require("../models/Player");
 const { processBall } = require("../services/scoreEngine");
 
-/* =========================================================
-   SCORER DASHBOARD
-========================================================= */
+// ======= SCORER DASHBOARD =======
 exports.getScorerDashboard = async (req, res) => {
   try {
     const scorerId = req.user.id || req.user._id;
@@ -69,9 +67,7 @@ exports.getScorerDashboard = async (req, res) => {
   }
 };
 
-/* =========================================================
-   ALL MATCHES ASSIGNED TO SCORER
-========================================================= */
+// ======= ALL MATCHES ASSIGNED TO SCORER =======
 exports.getScorerMatches = async (req, res) => {
   try {
     const scorerId = req.user.id || req.user._id;

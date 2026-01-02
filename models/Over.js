@@ -6,7 +6,7 @@ const overSchema = new mongoose.Schema({
         ref: "Match",
         required: true
     },
-    
+
     inningsId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Innings",

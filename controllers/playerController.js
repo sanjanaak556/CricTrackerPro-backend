@@ -2,9 +2,7 @@ const Player = require("../models/Player");
 const Team = require("../models/Team");
 const uploadToCloudinary = require("../utils/uploadToCloudinary");
 
-/* ============================= */
 /* ADD PLAYER (Admin only) */
-/* ============================= */
 exports.addPlayer = async (req, res) => {
   try {
     const {
@@ -15,7 +13,7 @@ exports.addPlayer = async (req, res) => {
       runs,
       wickets,
       average,
-      isCaptain // Add this
+      isCaptain
     } = req.body;
 
     if (!name || !role || !teamId) {
@@ -67,9 +65,7 @@ exports.addPlayer = async (req, res) => {
   }
 };
 
-/* ============================= */
 /* GET ALL PLAYERS */
-/* ============================= */
 exports.getAllPlayers = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -103,9 +99,7 @@ exports.getAllPlayers = async (req, res) => {
   }
 };
 
-/* ============================= */
 /* GET PLAYERS OF ONE TEAM */
-/* ============================= */
 exports.getPlayersByTeam = async (req, res) => {
   try {
     const players = await Player.find({
@@ -119,9 +113,7 @@ exports.getPlayersByTeam = async (req, res) => {
   }
 };
 
-/* ============================= */
 /* UPDATE PLAYER (Admin only) */
-/* ============================= */
 exports.updatePlayer = async (req, res) => {
   try {
     const {
@@ -132,7 +124,7 @@ exports.updatePlayer = async (req, res) => {
       runs,
       wickets,
       average,
-      isCaptain // Add this
+      isCaptain
     } = req.body;
 
     const player = await Player.findById(req.params.playerId);
@@ -200,9 +192,7 @@ exports.updatePlayer = async (req, res) => {
   }
 };
 
-/* ============================= */
 /* SOFT DELETE PLAYER (Admin only) */
-/* ============================= */
 exports.deletePlayer = async (req, res) => {
   try {
     const player = await Player.findById(req.params.playerId);
@@ -225,9 +215,7 @@ exports.deletePlayer = async (req, res) => {
   }
 };
 
-/* ============================= */
 /* SEARCH PLAYERS BY NAME */
-/* ============================= */
 exports.searchPlayers = async (req, res) => {
   try {
     const { name } = req.query;

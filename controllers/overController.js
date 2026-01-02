@@ -58,7 +58,7 @@ exports.createOver = async (req, res) => {
       balls: []
     });
 
-    // 🔥 IMPORTANT — UPDATE ACTIVE OVER and set currentBowler
+    //  UPDATE ACTIVE OVER and set currentBowler
     innings.currentOverId = newOver._id;
     innings.currentBowler = bowler;
     await innings.save();

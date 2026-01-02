@@ -226,8 +226,7 @@ exports.downloadMatchSummaryPDF = async (req, res) => {
     doc.text(`Format: ${match.matchType}`);
     doc.text(`Teams: ${match.teamA.name} vs ${match.teamB.name}`);
     doc.text(
-      `Venue: ${match.venue.name}${
-        match.venue.city ? ", " + match.venue.city : ""
+      `Venue: ${match.venue.name}${match.venue.city ? ", " + match.venue.city : ""
       }`
     );
     doc.text(`Scheduled Date: ${new Date(match.scheduledAt).toDateString()}`);
@@ -251,8 +250,7 @@ exports.downloadMatchSummaryPDF = async (req, res) => {
     doc
       .fontSize(14)
       .text(
-        `Toss: ${match.tossWinner?.name || "—"} elected to ${
-          match.electedTo || "—"
+        `Toss: ${match.tossWinner?.name || "—"} elected to ${match.electedTo || "—"
         }`
       );
     doc.moveDown();
@@ -346,16 +344,14 @@ exports.downloadMatchSummaryPDF = async (req, res) => {
     doc
       .fontSize(14)
       .text(
-        `Top Scorer: ${summary.topScorer?.playerId?.name || "—"} (${
-          summary.topScorer?.runs || 0
+        `Top Scorer: ${summary.topScorer?.playerId?.name || "—"} (${summary.topScorer?.runs || 0
         } runs)`
       );
 
     doc
       .fontSize(14)
       .text(
-        `Best Bowler: ${summary.bestBowler?.playerId?.name || "—"} (${
-          summary.bestBowler?.wickets || 0
+        `Best Bowler: ${summary.bestBowler?.playerId?.name || "—"} (${summary.bestBowler?.wickets || 0
         } wickets)`
       );
 

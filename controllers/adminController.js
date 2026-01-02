@@ -16,9 +16,9 @@ exports.getDashboardStats = async (req, res) => {
     const scorerRole = await UserRole.findOne({ roleName: "scorer" });
     const activeScorers = scorerRole
       ? await User.countDocuments({
-          role: scorerRole._id,
-          isActive: true
-        })
+        role: scorerRole._id,
+        isActive: true
+      })
       : 0;
 
     // Recent matches (last 5)
